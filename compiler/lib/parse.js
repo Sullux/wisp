@@ -43,10 +43,13 @@ const parse = code => {
     let str = ''
     next() // consume opening '
     while (peek() !== "'") {
+      if (eof()) {
+        throw error(UNBALANCED_EXPRESSION)
+      }
       str += next()
     }
     next() // consume closing '
-    return str
+    return { type: 'string', value: str }
   }
 
   const parseList = () => {

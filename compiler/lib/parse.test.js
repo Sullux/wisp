@@ -16,11 +16,13 @@ describe('parse', () => {
   })
 
   it('should parse a string literal', () => {
-    expect(parse("'hello'")).toEqual(['hello'])
+    expect(parse("'hello'")).toEqual([{ type: 'string', value: 'hello' }])
   })
 
   it('should parse a list containing a string', () => {
-    expect(parse("(log 'hello')")).toEqual([['log', 'hello']])
+    expect(parse("(log 'hello')")).toEqual([
+      ['log', { type: 'string', value: 'hello' }],
+    ])
   })
 
   it('should parse nested lists', () => {
