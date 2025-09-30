@@ -4,6 +4,7 @@
   "main": "lib/index.js",
   "license": "MIT",
   "scripts": {
+    "pretest": "node ../scripts/test.js",
     "test": "jest --verbose"
   },
   "devDependencies": {

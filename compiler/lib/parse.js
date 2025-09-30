@@ -65,7 +65,8 @@ const parse = (code) => {
       if (eof()) {
         throw error(UNBALANCED_EXPRESSION)
       }
-      list.push(parseExpr())
+      const expr = parseExpr()
+      if (expr) list.push(expr)
       while (/\s/.test(peek())) {
         next()
       }
@@ -83,6 +84,12 @@ const parse = (code) => {
       return null
     }
     const char = peek()
+    if (char === ';') {
+      while (!eof() && peek() !== '\n') {
+        next()
+      }
+      return null
+    }
     if (char === '(' || char === '[' || char === '{') {
       return parseList()
     } else if (char === "'") {

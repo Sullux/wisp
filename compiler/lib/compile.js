@@ -98,6 +98,7 @@ const compile = (rootNode) => {
   }
 
   const visitExpression = (node) => {
+    if (node.children.length === 0) return ''
     const head = node.children[0]
 
     if (head.type === 'atom') {
@@ -107,6 +108,11 @@ const compile = (rootNode) => {
         const value = visit(node.children[2])
         node.parent.declarations.set(name, { type: 'variable', value })
         return `const ${name} = ${value}`
+      }
+      if (head.value === '.') {
+        const object = visit(node.children[1])
+        const property = visit(node.children[2])
+        return `${object}.${property}`
       }
       const target = findInScope(head.value, node)
       if (target?.type === 'macro') return expandMacro(node, target.value)
