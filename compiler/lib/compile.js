@@ -58,6 +58,12 @@ const compile = (rootNode) => {
 
     if (head.type === 'atom') {
       if (head.value === 'ecma') return node.children[1].value
+      if (head.value === ':') {
+        const name = node.children[1].value
+        const value = visit(node.children[2])
+        node.parent.declarations.set(name, { type: 'variable', value })
+        return `const ${name} = ${value}`
+      }
       const target = findInScope(head.value, node)
       if (target?.type === 'macro') return expandMacro(node, target.value)
     }

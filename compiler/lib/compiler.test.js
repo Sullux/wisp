@@ -29,4 +29,14 @@ describe('Wisp Compiler', () => {
       expect(compile(wispCode)).toBe('+(+(10, 1), 1)')
     })
   })
+
+  describe('Special Forms', () => {
+    it('should handle variable declaration with ":"', () => {
+      const wispCode = `
+        (: x 10)
+        (: y (+ 5 5))
+      `
+      expect(compile(wispCode)).toBe('const x = 10;\nconst y = +(5, 5)')
+    })
+  })
 })
