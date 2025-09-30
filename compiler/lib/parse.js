@@ -17,7 +17,7 @@ const error = (message, ...args) => {
   return error
 }
 
-const parse = code => {
+const parse = (code) => {
   let i = 0
 
   const next = () => {
