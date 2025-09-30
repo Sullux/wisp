@@ -19,10 +19,41 @@ const compile = (rootNode) => {
         return visitAtom(node)
       case 'string':
         return visitString(node)
+      case 'import':
+        return visitImport(node)
+      case 'export':
+        return visitExport(node)
       default:
         throw new Error(`Unknown node type: ${node.type}`)
     }
   }
+
+  const visitImport = (node) => {
+    const { names, path } = node.value
+    const namesStr = names.join(', ')
+    return `const { ${namesStr} } = require('${path}')`
+  }
+
+  const visitExport = (node) => {
+    const exportedNode = node.children[0]
+    if (
+      exportedNode.type === 'expression' &&
+      exportedNode.children[0].value === ':'
+    ) {
+      const name = exportedNode.children[1].value
+      const value = visit(exportedNode.children[2])
+      node.parent.declarations.set(name, { type: 'variable', value })
+      return `const ${name} = ${value};\nmodule.exports.${name} = ${name};`
+    }
+
+    if (exportedNode.type === 'atom') {
+      const name = exportedNode.value
+      return `module.exports.${name} = ${name};`
+    }
+
+    return '' // Unsupported export form
+  }
+
 
   const visitMacro = (node) => {
     const [name] = node.ast

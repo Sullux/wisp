@@ -39,4 +39,28 @@ describe('Wisp Compiler', () => {
       expect(compile(wispCode)).toBe('const x = 10;\nconst y = +(5, 5)')
     })
   })
+
+  describe('Module System', () => {
+    it('should compile a project with imports and exports', () => {
+      const { compileProject } = require('./index')
+      const files = {
+        './math.wisp': `(export (: pi 3.14))`,
+        './main.wisp': `
+          (import [pi] from './math.wisp')
+          pi
+        `,
+      }
+      const fileProvider = (path) => files[path]
+      const compiled = compileProject('./main.wisp', fileProvider)
+      const mainJs = compiled.get('./main.wisp')
+      const mathJs = compiled.get('./math.wisp')
+
+      expect(mathJs.trim()).toBe(
+        'const pi = 3.14;\nmodule.exports.pi = pi;',
+      )
+      expect(mainJs.trim()).toBe(
+        `const { pi } = require('./math.wisp');\npi`,
+      )
+    })
+  })
 })
