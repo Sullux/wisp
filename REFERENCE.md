@@ -44,6 +44,10 @@
     *   [Property Access: `(. ...)`](./INTEROP.md#property-access---)
     *   [Instance Methods as Standalone Functions](./INTEROP.md#instance-methods-as-standalone-functions)
     *   [Direct JavaScript Execution: `(ecma ...)`](./INTEROP.md#direct-javascript-execution-ecma---)
+*   **[Modules](./MODULES.md)**
+    *   [Static Imports and Exports](./MODULES.md#static-modules)
+    *   [Dynamic Imports](./MODULES.md#dynamic-imports)
+    *   [Compiler Targets (CJS vs MJS)](./MODULES.md#compiler-targets)
 *   **[Advanced Topics](./ADVANCED.md)**
     *   [Compile-Time Functions (CTFs)](./ADVANCED.md#compile-time-functions-ctfs)
         *   [Concept and Usage](./ADVANCED.md#concept-and-usage)

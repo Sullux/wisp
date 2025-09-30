@@ -34,8 +34,21 @@ const compile = (rootNode) => {
 
   const expandMacro = (node, macro) => {
     if (typeof macro !== 'function') return macro
+
+    const compileRaw = (rawAst) => {
+      const hydratedNode = hydrate([rawAst]).children[0]
+      hydratedNode.parent = node.parent
+      return visit(hydratedNode)
+    }
+
     // invoke the macro
-    const transformed = macro(...node.ast.slice(1))
+    const transformed = macro({
+      compile: visit,
+      compileRaw,
+      raw: node.ast.slice(1),
+      ast: node.children.slice(1),
+    })
+
     // depending on return type, process the transformed result
     // if string, treat as compiled JavaScript
     if (typeof transformed === 'string') return transformed

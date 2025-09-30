@@ -13,7 +13,7 @@ describe('Wisp Compiler', () => {
     it('should expand a macro that returns a new Node', () => {
       const wispCode = `
         (:macro twice (ecma '
-          (n) => ["+", n, n]
+          ({ raw: [n] }) => ["+", n, n]
         '))
         (twice 5)
       `
@@ -22,8 +22,8 @@ describe('Wisp Compiler', () => {
 
     it('should handle macros expanding into other macros', () => {
       const wispCode = `
-        (:macro add-one (ecma '(n) => ["+", n, 1]'))
-        (:macro add-two (ecma '(n) => ["add-one", ["add-one", n]]'))
+        (:macro add-one (ecma '({ raw: [n] }) => ["+", n, 1]'))
+        (:macro add-two (ecma '({ raw: [n] }) => ["add-one", ["add-one", n]]'))
         (add-two 10)
       `
       expect(compile(wispCode)).toBe('+(+(10, 1), 1)')
