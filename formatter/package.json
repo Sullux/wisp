@@ -1,0 +1,10 @@
+{
+  "name": "wisp-fmt",
+  "version": "0.1.0",
+  "description": "A standalone code formatter for the Wisp programming language.",
+  "main": "index.js",
+  "bin": {
+    "wisp-fmt": "./index.js"
+  },
+  "license": "MIT"
+}
