@@ -1,6 +1,38 @@
 {
-  "name": "syntax-highlighter",
-  "version": "1.0.0",
-  "main": "index.js",
-  "license": "MIT"
+  "name": "wisp-syntax-highlighter",
+  "displayName": "Wisp Syntax Highlighter",
+  "description": "Syntax highlighting for the Wisp programming language.",
+  "version": "0.1.0",
+  "main": "./extension.js",
+  "activationEvents": [
+    "onLanguage:wisp"
+  ],
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "wisp",
+        "aliases": [
+          "Wisp",
+          "wisp"
+        ],
+        "extensions": [
+          ".wisp"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "wisp",
+        "scopeName": "source.wisp",
+        "path": "./syntaxes/wisp.tmLanguage.json"
+      }
+    ]
+  }
 }
