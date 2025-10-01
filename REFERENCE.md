@@ -29,6 +29,12 @@
     *   [Scope](./VARIABLES.md#scope)
         *   [Function Scope](./VARIABLES.md#function-scope)
         *   [Expression Scope](./VARIABLES.md#expression-scope)
+*   **[Conditionals](./CONDITIONALS.md)**
+    *   [Binary Conditional: `if`](./CONDITIONALS.md#binary-conditional-if)
+    *   [Multi-Branch Conditional: `when` / `cond`](./CONDITIONALS.md#multi-branch-conditional-when-and-cond)
+    *   [Truthiness and Existence: `?` / `??`](./CONDITIONALS.md#truthiness-and-existence-checks)
+    *   [Value Matching: `match`](./CONDITIONALS.md#value-based-branching-match)
+    *   [Predicate Matching: `given`](./CONDITIONALS.md#predicate-based-branching-given)
 *   **[Functions](./FUNCTION.md)**
     *   [Definition: `(=> ...)`](./FUNCTION.md#definition---)
     *   [Function Calls](./FUNCTION.md#function-calls)

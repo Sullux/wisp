@@ -119,7 +119,7 @@ const compile = (rootNode) => {
     }
 
     const func = visit(head)
-    if (!func) return ''
+    if (!func || func===';') return ''
     const args = node.children
       .slice(1)
       .map((child) => visit(child))

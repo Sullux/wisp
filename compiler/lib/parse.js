@@ -61,6 +61,10 @@ const parse = (code) => {
     }
 
     const list = []
+    if (peek()===';'){
+      list.push(';')
+      next()
+    }
     while (peek() !== endChar) {
       if (eof()) {
         throw error(UNBALANCED_EXPRESSION)

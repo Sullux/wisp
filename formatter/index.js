@@ -7,36 +7,18 @@ const path = require('path')
 const { parse } = require('../compiler/lib/parse')
 
 const format = (ast) => {
-  const MAX_LINE_LENGTH = 40
-  const INDENT_SIZE = 2
-
-  const printNode = (node, indent = 0) => {
+  const printNode = (node) => {
     if (Array.isArray(node)) {
-      // First, calculate the length if it were all on one line
-      const singleLine = `(${node.map((n) => printNode(n, 0)).join(' ')})`
-
-      // If it fits, use the single-line version
-      if (singleLine.length <= MAX_LINE_LENGTH) {
-        return singleLine
-      }
-
-      // If not, format it across multiple lines
-      const head = printNode(node[0], indent)
-      const tail = node.slice(1)
-      const newIndent = indent + INDENT_SIZE
-      const indentStr = ' '.repeat(newIndent)
-
-      const children = tail.map((n) => indentStr + printNode(n, newIndent))
-
-      return `( ${head}\n${children.join('\n')})`
+      const children = node.map(printNode).join(' ')
+      return `(${children})`
     } else if (typeof node === 'object' && node.type === 'string') {
       return `'${node.value}'`
     } else {
-      return String(node)
+      return node
     }
   }
 
-  return ast.map((node) => printNode(node, 0)).join('\n')
+  return ast.map(printNode).join('\n')
 }
 
 const main = () => {

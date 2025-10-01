@@ -47,7 +47,7 @@ const main = () => {
 
   testFiles.forEach((wispFile) => {
     const compiled = compileProject(wispFile, fileProvider)
-    const jsCode = compiled.get(wispFile)
+    const jsCode = `${compiled.get(wispFile)}\n`
     const jsFile = wispFile.replace(/\.wisp$/, '.js')
     fs.writeFileSync(jsFile, jsCode)
     console.log(`  ✓ ${path.basename(wispFile)} -> ${path.basename(jsFile)}`)
