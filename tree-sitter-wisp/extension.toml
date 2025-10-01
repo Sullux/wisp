@@ -1,0 +1,23 @@
+schema_version = 1
+id = "wisp"
+name = "wisp"
+version = "0.1.1"
+authors = ["Charles <charles@sullux.com>"]
+description = "Wisp language support for Zed."
+repository = "https://github.com/sullux/wisp"
+
+[[language]]
+name = "wisp"
+grammar = "wisp"
+path_suffixes = ["wisp"]
+comment_token = ";"
+highlights = "queries/highlights.scm"
+brackets = [
+    { start = "(", end = ")" },
+    { start = "[", end = "]" },
+    { start = "{", end = "}" },
+]
+auto_pairs = { "(" = ")", "[" = "]", "{" = "}", "'" = "'" }
+
+[grammars.wisp]
+repository = "file:///home/charles/sullux/wisp/tree-sitter-wisp"

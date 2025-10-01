@@ -1,0 +1,101 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Wisp",
+  "scopeName": "source.wisp",
+  "patterns": [
+    { "include": "#comment" },
+    { "include": "#ecma-block" },
+    { "include": "#string" },
+    { "include": "#number" },
+    { "include": "#keywords" },
+    { "include": "#list" },
+    { "include": "#brackets" },
+    { "include": "#braces" },
+    { "include": "#identifier" }
+  ],
+  "repository": {
+    "comment": {
+      "name": "comment.line.semicolon.wisp",
+      "match": ";.*$"
+    },
+    "string": {
+      "name": "string.quoted.single.wisp",
+      "begin": "'",
+      "end": "'",
+      "patterns": [
+        {
+          "name": "constant.character.escape.wisp",
+          "match": "\\."
+        }
+      ]
+    },
+    "number": {
+      "name": "constant.numeric.wisp",
+      "match": "\\b-?[0-9]+(\\.[0-9]+)?\\b"
+    },
+    "keywords": {
+      "name": "keyword.control.wisp",
+      "match": "\\b(:|:macro|ecma|=>|\\.)\\b"
+    },
+    "identifier": {
+      "name": "variable.other.wisp",
+      "match": "[^\\s\\(\\)\[\]\\{\\}]+"
+    },
+    "function-name": {
+      "begin": "(?<=[\\(\[\\{])\\s*([^\\s\\(\\)\[\]\\{\\}]+)",
+      "end": "(?=[\\s\\)\]\\}])",
+      "beginCaptures": {
+        "1": { "name": "entity.name.function.wisp" }
+      }
+    },
+    "ecma-block": {
+      "begin": "(?<=\\(\\s*ecma)\\s*(')",
+      "end": "'",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.string.begin.wisp" }
+      },
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.string.end.wisp" }
+      },
+      "name": "meta.embedded.block.javascript.wisp",
+      "patterns": [
+        {
+          "include": "source.js"
+        }
+      ]
+    },
+    "list-patterns": {
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#ecma-block" },
+        { "include": "#string" },
+        { "include": "#number" },
+        { "include": "#keywords" },
+        { "include": "#function-name" },
+        { "include": "$self" },
+        { "include": "#identifier" }
+      ]
+    },
+    "list": {
+      "begin": "\\(",
+      "end": "\\)",
+      "beginCaptures": { "0": { "name": "punctuation.definition.list.begin.wisp" } },
+      "endCaptures": { "0": { "name": "punctuation.definition.list.end.wisp" } },
+      "patterns": [{ "include": "#list-patterns" }]
+    },
+    "brackets": {
+      "begin": "\\[",
+      "end": "\\]",
+      "beginCaptures": { "0": { "name": "punctuation.definition.bracket.begin.wisp" } },
+      "endCaptures": { "0": { "name": "punctuation.definition.bracket.end.wisp" } },
+      "patterns": [{ "include": "#list-patterns" }]
+    },
+    "braces": {
+      "begin": "\\{",
+      "end": "\\}",
+      "beginCaptures": { "0": { "name": "punctuation.definition.brace.begin.wisp" } },
+      "endCaptures": { "0": { "name": "punctuation.definition.brace.end.wisp" } },
+      "patterns": [{ "include": "#list-patterns" }]
+    }
+  }
+}
