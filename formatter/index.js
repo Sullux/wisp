@@ -7,18 +7,36 @@ const path = require('path')
 const { parse } = require('../compiler/lib/parse')
 
 const format = (ast) => {
-  const printNode = (node) => {
+  const MAX_LINE_LENGTH = 40
+  const INDENT_SIZE = 2
+
+  const printNode = (node, indent = 0) => {
     if (Array.isArray(node)) {
-      const children = node.map(printNode).join(' ')
-      return `(${children})`
+      // First, calculate the length if it were all on one line
+      const singleLine = `(${node.map((n) => printNode(n, 0)).join(' ')})`
+
+      // If it fits, use the single-line version
+      if (singleLine.length <= MAX_LINE_LENGTH) {
+        return singleLine
+      }
+
+      // If not, format it across multiple lines
+      const head = printNode(node[0], indent)
+      const tail = node.slice(1)
+      const newIndent = indent + INDENT_SIZE
+      const indentStr = ' '.repeat(newIndent)
+
+      const children = tail.map((n) => indentStr + printNode(n, newIndent))
+
+      return `( ${head}\n${children.join('\n')})`
     } else if (typeof node === 'object' && node.type === 'string') {
       return `'${node.value}'`
     } else {
-      return node
+      return String(node)
     }
   }
 
-  return ast.map(printNode).join('\n')
+  return ast.map((node) => printNode(node, 0)).join('\n')
 }
 
 const main = () => {
@@ -47,8 +65,9 @@ const main = () => {
   const source = fs.readFileSync(targetPath, 'utf8')
   const ast = parse(source)
   const formattedSource = format(ast)
+  const finalOutput = formattedSource.trim() + '\n'
 
-  fs.writeFileSync(targetPath, formattedSource)
+  fs.writeFileSync(targetPath, finalOutput)
 
   console.log('Done.')
 }
