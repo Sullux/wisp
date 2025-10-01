@@ -1,7 +1,0 @@
----
-name: basic_wisp_file
----
-
-(log 'hello world')
-
-(=> add x y (+ x y))

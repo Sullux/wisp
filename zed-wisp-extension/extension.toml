@@ -20,4 +20,5 @@ brackets = [
 auto_pairs = { "(" = ")", "[" = "]", "{" = "}", "'" = "'" }
 
 [grammars.wisp]
-repository = "file:///home/charles/sullux/wisp/tree-sitter-wisp"
+repository = "file:///home/charles/sullux/wisp-grammar"
+rev = "19ac94a1d916de0cdb797bb1e95441f3e42845b7"
