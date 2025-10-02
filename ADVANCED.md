@@ -15,31 +15,29 @@ The power of macros is that they give the developer direct control over the comp
 
 ### Defining a Macro
 
-Macros are defined using a special declaration syntax: `(:macro name body)`. This pattern extends the standard `(:)` declaration, signaling that you are creating a compile-time function rather than a runtime constant.
+Macros are defined using the `->` (or `let`) syntax, just like any other named value. To distinguish a macro definition, you use the special form `(macro-ecma ...)` as the value.
 
-The `body` of the macro must be a JavaScript-backed function, defined using `(ecma ...)`. This function receives the macro's **context object** as its single argument.
+The body of the macro must be a JavaScript-backed function, defined using `(ecma ...)`. This function receives the macro's **context object** as its single argument.
 
 #### Example: The `twice` macro
 
 This macro takes a single expression and duplicates it inside an addition.
 
 ```wisp
-(:macro twice (ecma '
-  ; The macro receives a context object. We destructure it to get
-  ; the raw AST for the arguments passed to the macro.
-  ({ raw: [n] }) => {
-    // The macro returns a new raw AST, which the compiler will then
-    // hydrate and compile in its place.
-    return ["+", n, n]
-  }
-'))
-
-; Now, when you write:
-(twice 5)
-
-; The compiler first runs the macro, which transforms the AST.
-; It then compiles the result as if you had written:
-(+ 5 5)
+(->
+  twice (macro-ecma (ecma '
+    ; The macro receives a context object. We destructure it to get
+    ; the raw AST for the arguments passed to the macro.
+    ({ raw: [n] }) => {
+      // The macro returns a new raw AST, which the compiler will then
+      // hydrate and compile in its place.
+      return ["+", n, n]
+    }
+  '))
+  
+  ; The 'twice' macro is now available within this '->' block
+  (twice 5) ; This will be expanded to (+ 5 5)
+)
 ```
 
 ### The Macro Context Object

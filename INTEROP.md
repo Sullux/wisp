@@ -21,17 +21,19 @@ A key difference is equality. Wisp uses a single equals sign `(=)` for strict eq
 To access properties of a JavaScript object, Wisp provides the dot `(.)` function. This single function replaces both dot notation (`obj.prop`) and bracket notation (`obj['prop']`) from JavaScript.
 
 ```wisp
-(: myObj { foo: 42, 'bar baz': 1138 })
-(: myArr [10 20 30])
+(->
+  myObj { foo: 42, 'bar baz': 1138 }
+  myArr [10 20 30]
 
-; Equivalent to myObj.foo
-(. myObj foo) ; 42
+  (do
+    ; Equivalent to myObj.foo
+    (log (. myObj foo)) ; 42
 
-; Equivalent to myObj['bar baz']
-(. myObj 'bar baz') ; 1138
+    ; Equivalent to myObj['bar baz']
+    (log (. myObj 'bar baz')) ; 1138
 
-; Equivalent to myArr[1]
-(. myArr 1) ; 20
+    ; Equivalent to myArr[1]
+    (log (. myArr 1)))) ; 20
 ```
 
 ## Instance Methods as Standalone Functions
@@ -70,14 +72,13 @@ This design promotes consistency and works well with partial application. For ex
 
 For situations where you need to drop down to raw JavaScript, Wisp provides the `ecma` function. This function takes a single string argument, which is executed as JavaScript code.
 
-All Wisp constants that are in scope are available as variables within the `ecma` string. This provides a powerful escape hatch for accessing JavaScript features not yet wrapped by Wisp or for performance-critical code.
+All Wisp bindings that are in scope are available as variables within the `ecma` string. This provides a powerful escape hatch for accessing JavaScript features not yet wrapped by Wisp or for performance-critical code.
 
 ```wisp
-(: x 10)
-(: y 20)
-
-; Use raw JavaScript to perform addition
-(ecma 'x + y') ; 30
+(let
+  x 10
+  y 20
+  (ecma 'x + y')) ; 30
 ```
 
 This is particularly useful for interacting with complex JavaScript APIs or libraries directly.

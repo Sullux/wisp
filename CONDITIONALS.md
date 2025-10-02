@@ -105,13 +105,12 @@ The `given` macro is a high-level conditional that takes a subject and applies i
 
 **Example:**
 ```wisp
-(: temperature 3)
-
-(given temperature
-  (> 10)  "It's warm"
-  (> 0)   "It's cool"   ; This predicate ((> 0) 3) is true
-  (< 0)   "It's freezing"
-  "It's exactly zero")
+(-> temperature 3
+  (given temperature
+    (> 10)  "It's warm"
+    (> 0)   "It's cool"   ; This predicate ((> 0) 3) is true
+    (< 0)   "It's freezing"
+    "It's exactly zero"))
   
 ;=> "It's cool"
 ```

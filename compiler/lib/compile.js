@@ -11,6 +11,8 @@ const exists = (v) => !!v
 const compile = (rootNode) => {
   const visit = (node) => {
     switch (node.type) {
+      case 'assignment':
+        return visitAssignment(node)
       case 'macro':
         return visitMacro(node)
       case 'expression':
@@ -25,6 +27,15 @@ const compile = (rootNode) => {
         return visitExport(node)
       default:
         throw new Error(`Unknown node type: ${node.type}`)
+    }
+  }
+
+  const visitAssignment = (node) => {
+    const { parent, children } = node
+    for(let l = children.length, i = 0; i < l; i += 2) {
+      const name = children[i]
+      const value = children[i + 1]
+      parent.declarations.set(visit(name), value && visit(value))
     }
   }
 
@@ -69,6 +80,7 @@ const compile = (rootNode) => {
     const compileRaw = (rawAst) => {
       const hydratedNode = hydrate([rawAst]).children[0]
       hydratedNode.parent = node.parent
+      console.log('HYDRATE', rawAst, hydratedNode)
       return visit(hydratedNode)
     }
 
@@ -102,8 +114,11 @@ const compile = (rootNode) => {
     const head = node.children[0]
 
     if (head.type === 'atom') {
+      console.log('ATOM', head.value)
+      if (head.value === ';') return ''
       if (head.value === 'ecma') return node.children[1].value
       if (head.value === ':') {
+        console.log('FOUND')
         const name = node.children[1].value
         const value = visit(node.children[2])
         node.parent.declarations.set(name, { type: 'variable', value })
@@ -119,7 +134,7 @@ const compile = (rootNode) => {
     }
 
     const func = visit(head)
-    if (!func || func===';') return ''
+    if (!func) return ''
     const args = node.children
       .slice(1)
       .map((child) => visit(child))

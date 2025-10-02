@@ -1,87 +1,75 @@
-# Variables and Scope
+# Scope and Bindings
 
-This document explains how to declare named values (constants) and how scope works in Wisp.
+This document explains how to create local bindings for values and how lexical scope works in Wisp.
 
-It's important to note that Wisp does not have mutable variables in the traditional sense; all declarations create constants whose values cannot be reassigned.
+Wisp is an expression-based language. Instead of statements (like `const x = 42;`), it uses scoped expression blocks to create local bindings for values.
 
-## Declarations: `(: ...)`
+## Scoped Expressions: `(-> ...)`
 
-Named constants are created using the colon `(:)` function. A declaration is a statement, not an expression, meaning it does not return a value.
+The primary mechanism for creating a new lexical scope and local bindings is the `->` macro. A `->` block is an expression that allows you to define one or more named constants that exist only within that block.
 
-The basic syntax is `(: name value)`.
+The syntax consists of a series of binding pairs followed by a single body expression. The entire `->` block evaluates to the value of this final body expression.
 
-```wisp
-(: x 42)
-(: greeting 'Hello, World!')
-```
-
-This is conceptually similar to `const` in JavaScript.
-
-Because declarations are not expressions, they are effectively "invisible" to the surrounding code in terms of evaluation flow. This allows you to place them within other expressions to provide context or "givens" for a calculation.
-
-Consider this example:
+**Syntax:** `(-> name1 value1 name2 value2 ... body-expression)`
 
 ```wisp
-(
-  (: x 40)
-  (: y 2)
-  + x y
-)
+(->
+  x 40
+  y 2
+  (+ x y)) ; The value of this expression is returned
+
+; The entire -> block evaluates to 42
 ```
 
-Here, we declare `x` and `y` within a list. When the list is evaluated as a function call, the declarations are processed to establish the scope, but they are ignored during the function application itself. The expression is evaluated as if it were `(+ x y)`, but in a scope where `x` is `40` and `y` is `2`. The final result of the expression is `42`.
+This is conceptually similar to a JavaScript IIFE (Immediately Invoked Function Expression). Bindings are immutable and only visible within the block.
 
-## Declaration Expressions: `(:: ...)`
+**Alias:** For developers who prefer a more descriptive keyword, `let` is available as an alias for `->`. They are functionally identical.
 
-While `(:)` is a statement that returns no value, Wisp also provides a declaration *expression*, `(::)`, which both declares a constant and returns its value.
+## Destructuring
 
-The syntax `(:: name value)` is roughly equivalent to the assignment expression `(name = value)` in JavaScript.
+The `->` block also provides a powerful, unified syntax for destructuring—extracting values from objects and binding them to local names. This same syntax is used for [module imports](./MODULES.md).
 
-This is most useful when you need to create and use a value in the same step, such as within a loop or a mapping function.
+### Positional Destructuring `[...]`
+
+To bind names to the properties of an object, you can use bracket notation.
 
 ```wisp
-(: toObject (=> arr (
-  (: i 0)
-  (fromEntries (map (=> (Array (:: i (++ i)) _)) arr))
-)))
+(->
+  point { x: 10, y: 20 }
 
-(log (toObject (Array 'a' 'b' 'c')))
-; Expected output: { 0: 'a', 1: 'b', 2: 'c' }
+  ; Binds local 'x' to point.x and local 'y' to point.y
+  [x y] point
+
+  (+ x y)) ; Evaluates to 30
 ```
 
-In the expression `(Array (:: i (++ i)) _)`, the `(:: i (++ i))` part first increments `i`, then assigns the *new* value back to `i`, and finally returns that new value to be used as the first element in the new array.
+### Renaming Destructuring `{...}`
 
-## Scope
+To bind properties to different local names, you can use brace notation.
 
-Scope in Wisp determines the visibility and lifetime of identifiers. The rules are very similar to lexical scoping in JavaScript.
-
-### Function Scope
-
-Any constant declared inside a function is local to that function and cannot be accessed from outside of it. Inner functions, however, can access constants from their parent (outer) scopes.
+**Syntax:** `{ original-name new-name, ... }`
 
 ```wisp
-(: x 10)
+(->
+  point { x: 10, y: 20 }
 
-(: myFunction (=> y (
-  (: z 20)
-  (+ x y z) ; Can access global x, parameter y, and local z
-)))
+  ; Binds local 'px' to point.x and local 'py' to point.y
+  { x px, y py } point
 
-(log (myFunction 12)) ; 42
-(log z) ; Error: z is not defined in this scope
+  (+ px py)) ; Evaluates to 30
 ```
 
-### Expression Scope
+You can also mix and match: `[x, { y py }] point`.
 
-In Wisp, any list (an expression enclosed in parentheses) creates its own scope. Declarations placed at the beginning of a list are scoped to that list and are not visible outside of it.
+### Spread Destructuring `...`
+
+To bring all properties of an object into the current scope under their own names, use the spread `...` syntax.
 
 ```wisp
-(
-  (: message 'Hello')
-  (log message) ; "Hello"
-)
+(->
+  point { x: 10, y: 20 }
 
-(log message) ; Error: message is not defined in this scope
+  ...point ; Brings 'x' and 'y' into scope
+
+  (+ x y)) ; Evaluates to 30
 ```
-
-This is a powerful feature for creating isolated blocks of logic without polluting the surrounding scope. For example, you can have an expression `(: x 42 (1138))`. This is valid syntax: `x` is declared and scoped only to this expression. Since `x` is never used, the expression simply evaluates to its final term, `1138`.

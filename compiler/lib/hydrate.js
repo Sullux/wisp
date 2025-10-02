@@ -14,6 +14,15 @@ const hydrate = (rawAst) => {
           ast: raw.slice(1),
           children: [walk(raw[2], parent)],
         })
+      if (head === ':') {
+        const ast = raw.slice(1)
+        return Node({
+          type: 'assignment',
+          parent,
+          ast,
+          children: ast.map((raw) => walk(raw, parent)),
+        })
+      }
       if (head === 'import' && raw[2] === 'from') {
         const names = raw[1].slice(1)
         const path = raw[3].value

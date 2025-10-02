@@ -1,89 +1,86 @@
-# Modules in Wisp
+# Modules
 
-Wisp provides a robust module system that aligns with the modern JavaScript (ESM) standard while maintaining compatibility with the legacy CommonJS (CJS) ecosystem. This allows Wisp developers to write code using a single, consistent syntax and then target the desired JavaScript module system at compile time.
+Wisp's module system is designed to be simple, expressive, and fully compatible with the JavaScript ecosystem. It is built on the same core concepts of scoped expressions (`->`) and destructuring that are used throughout the language.
 
-The module system is designed to be both statically analyzable for performance and tooling, and flexible enough to support dynamic loading for advanced use cases.
+## The Module as an Expression
 
-## Static Modules
-
-Static modules form the backbone of a Wisp application's architecture. They use top-level `import` and `export` declarations to create a clear, analyzable dependency graph. This is the preferred method for structuring your projects.
-
-### `export`
-
-The `export` declaration makes a value or function from the current file available to other files.
-
-You can export a variable or function definition directly:
+A Wisp file is treated as a single, implicit scoped expression. This means you can define local bindings within a file, and the value of the final expression in the file becomes its **default export**.
 
 ```wisp
-; -- file: ./math.wisp
+; math.wisp
 
-; Export a variable
-(export (: pi 3.14159))
+; These are local bindings, not visible outside the module.
+pi 3.14159
+square (=> (x) (* x x))
 
-; Export a function
-(export (=> add (a b) (+ a b)))
+; The last expression is the default export.
+; This module will default export a function that calculates
+; the area of a circle.
+(=> (r) (* pi (square r)))
 ```
 
-You can also export a default value:
+## Named Exports: `(export ...)`
+
+To export a named value, you use the `export` macro. This macro marks a value for export while still allowing it to be used as a binding within the file.
+
+**Syntax:** `(export <name-as-string> <value>)`
+
+The `export` macro evaluates to `<value>`.
 
 ```wisp
-; -- file: ./calculator.wisp
-(export-default (=> (a b) (* a b)))
+; utils.wisp
+
+; 'log-prefix' is local to this module
+log-prefix '[WISP]'
+
+; The 'log' function is bound locally AND marked for named export.
+log (export 'log' (=> (msg) (console.log log-prefix msg)))
+
+; The 'add' function is also bound locally and exported.
+add (export 'add' (=> (x y) (+ x y)))
+
+; This module has no default export, so its final value is undefined.
+(do)
 ```
 
-### `import`
+## Imports
 
-The `import` declaration brings exported values from another module into the current scope.
+Importing from other modules uses the same destructuring syntax as the `->` block. You create a binding where the "value" is an `(import ...)` expression.
 
-To import named exports, use a list of identifiers:
+**Syntax:** `(import <path-to-module>)`
+
+### Default Imports
+
+To import the default export of a module, bind it to a name.
 
 ```wisp
-; -- file: ./main.wisp
-(import [pi add] from "./math.wisp")
+(->
+  ; Bind the default export of 'math.wisp' to the local name 'area'
+  area (import './math.wisp')
 
-(log (add pi 2)) ;=> 5.14159
+  (area 10)) ; Calculates area of a circle with radius 10
 ```
 
-To import a default export, use a single identifier:
+### Named Imports
+
+To import named exports, use the standard destructuring syntax.
 
 ```wisp
-(import multiply from "./calculator.wisp")
+(->
+  ; Import 'log' and 'add' from 'utils.wisp'
+  [log add] (import './utils.wisp')
 
-(log (multiply 3 4)) ;=> 12
+  (log (add 1 2)))
 ```
 
-### JavaScript Interoperability
+### Renaming Imports
 
-You can import directly from JavaScript files. The compiler will automatically handle the correct file extension (`.js`, `.mjs`, or `.cjs`) based on the compilation target.
+Renaming also uses the standard destructuring syntax.
 
 ```wisp
-; Import a CJS module like 'fs'
-(import-js [readFile] from "fs")
+(->
+  ; Import 'log' as 'print' and 'add' as 'sum'
+  { log print, add sum } (import './utils.wisp')
 
-; Import an ESM module from a local file
-(import-js [myFunction] from "./utils.js")
+  (print (sum 1 2)))
 ```
-
-## Dynamic Imports
-
-For advanced use cases like lazy-loading modules, conditional dependencies, or loading code from a dynamic source, Wisp provides a `dynamic-import` macro. This is the equivalent of JavaScript's dynamic `import()` function or CJS's `require`.
-
-The `dynamic-import` macro takes a single argument—the path to the module—and returns a `Promise` that resolves with the module's exports.
-
-```wisp
-(-> (dynamic-import "./math.wisp")
-  (then (math)
-    (log (math.add math.pi 10))))
-;=> 13.14159
-```
-
-Because it returns a promise, you can use it with `await` in an async context for cleaner syntax.
-
-## Compiler Targets
-
-The Wisp compiler will have a `--target` flag that determines the output format.
-
-*   `--target cjs`: Compiles Wisp module syntax to CommonJS (`require` and `module.exports`).
-*   `--target mjs`: Compiles Wisp module syntax to ES Modules (`import` and `export`).
-
-This allows the same Wisp codebase to seamlessly integrate with any JavaScript project, regardless of its underlying module system.

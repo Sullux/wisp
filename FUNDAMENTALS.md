@@ -38,11 +38,12 @@ In Wisp, an identifier can be any string that does not contain parentheses or wh
 To use identifiers that contain spaces or other special characters, you can escape them with double quotes (`"`). This is particularly useful for object keys.
 
 ```wisp
-; A standard identifier
-(: fooBar 42)
-
-; An escaped identifier with a space
-(: "foo bar" 42)
+(->
+  fooBar 42
+  "foo bar" 1138
+  
+  ; Now both fooBar and "foo bar" are in scope
+  (+ fooBar (. {"foo bar": 1138} "foo bar")))
 ```
 
 **Note:** Double quotes are used *only* for identifiers, never for string literal values.
@@ -75,9 +76,10 @@ You can also use this to easily comment out a block of code by simply adding a s
 
 ```wisp
 (; This whole expression is now a comment
-  (: x 40)
-  (: y 2)
-  (+ x y)
+  (let
+    x 40
+    y 2
+    (+ x y))
 )
 ```
 
@@ -98,10 +100,8 @@ Strings are sequences of characters enclosed in single quotes (`'`).
 If a string is used where a function would normally be, it is treated as a template literal. You can embed expressions within it using `${...}` or reference arguments by their 1-based index with `$1`, `$2`, etc.
 
 ```wisp
-(: name 'Wisp')
-
-; Using an in-scope variable
-('Hello, ${name}!') ; "Hello, Wisp!"
+(let name 'Wisp'
+  ('Hello, ${name}!')) ; "Hello, Wisp!"
 
 ; Using positional arguments
 ('Hello, $1!' 'Wisp') ; "Hello, Wisp!"
