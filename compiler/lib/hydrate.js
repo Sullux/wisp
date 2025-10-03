@@ -3,7 +3,7 @@
 
 const { Node } = require('./node')
 
-const hydrate = (rawAst) => {
+const hydrate = (rawAst, rootParent) => {
   const walk = (raw, parent) => {
     if (Array.isArray(raw)) {
       const head = raw[0]
@@ -51,7 +51,7 @@ const hydrate = (rawAst) => {
     }
   }
 
-  const root = Node({ type: 'root' })
+  const root = Node({ type: 'root', parent: rootParent })
   root.children = rawAst.map((raw) => walk(raw, root))
   return root
 }

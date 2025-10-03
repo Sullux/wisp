@@ -1,11 +1,13 @@
 /* This script finds all .test.wisp files, compiles them to JavaScript,
  * and writes them out as .test.js files for Jest to run. */
 
-const fs = require('fs')
-const path = require('path')
-const { compileProject } = require('../compiler/lib/index')
+const fs = require('node:fs')
+const path = require('node:path')
+const { compileModule } = require('../compiler/lib')
+const { FileLoader } = require('../compiler/lib/fileLoader')
 
 const stdDir = path.join(__dirname, '..', 'compiler', 'std')
+const loader = FileLoader(stdDir)
 
 const findWispTestFiles = (dir) => {
   let results = []
@@ -22,36 +24,16 @@ const findWispTestFiles = (dir) => {
   return results
 }
 
-const fileProvider = (filePath) => {
-  try {
-    // Resolve paths relative to the std directory
-    const absolutePath = path.resolve(stdDir, filePath)
-    return fs.readFileSync(absolutePath, 'utf8')
-  } catch (e) {
-    // Allow Node module resolution
-    if (e.code === 'ENOENT') {
-      try {
-        return require.resolve(filePath)
-      } catch (e2) {
-        return undefined
-      }
-    }
-    return undefined
-  }
-}
-
 const main = () => {
   const testFiles = findWispTestFiles(stdDir)
 
   console.log(`Compiling ${testFiles.length} Wisp test file(s)...`)
 
   testFiles.forEach((wispFile) => {
-    const compiled = compileProject(wispFile, fileProvider)
-    let jsCode = `${compiled.get(wispFile).trim()}\n`
-    jsCode =
-      jsCode.length === 1
-        ? `describe('wisp standard library', () => { test.todo('TODO: test ${wispFile}') })\n`
-        : jsCode
+    let jsCode = compileModule(wispFile, { loader })
+    jsCode = jsCode
+      ? `${jsCode.trim()}\n`
+      : `describe('wisp standard library', () => { test.todo('TODO: test ${wispFile}') })\n`
     const jsFile = wispFile.replace(/\.wisp$/, '.js')
     fs.writeFileSync(jsFile, jsCode)
     console.log(`  ✓ ${path.basename(wispFile)} -> ${path.basename(jsFile)}`)

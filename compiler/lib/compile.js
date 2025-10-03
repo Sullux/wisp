@@ -46,6 +46,7 @@ const compile = (rootNode) => {
   }
 
   const visitExport = (node) => {
+    // TODO: change this to MJS
     const exportedNode = node.children[0]
     if (
       exportedNode.type === 'expression'
