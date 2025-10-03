@@ -6,14 +6,17 @@ const analyze = (hydratedAst) => {
   const exports = []
 
   const visit = (node) => {
+    if (node.children?.length) {
+      node.children.forEach(visit)
+    }
     if (node.type === 'import') {
       imports.push(node.value)
     }
     if (node.type === 'export') {
       const exportChild = node.children[0]
       if (
-        exportChild.type === 'expression' &&
-        exportChild.children[0].value === ':'
+        exportChild.type === 'expression'
+        && exportChild.children[0].value === ':'
       ) {
         const name = exportChild.children[1].value
         exports.push(name)

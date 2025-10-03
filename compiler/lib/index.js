@@ -2,24 +2,32 @@
 
 const fs = require('fs')
 const path = require('path')
-
 const { parse } = require('./parse')
 const { hydrate } = require('./hydrate')
 const { analyze } = require('./analyze')
 const { compile: compileAst } = require('./compile')
 
-const compile = (wispCode) => {
-  const rawAST = parse(wispCode)
-  const hydratedAST = hydrate(rawAST)
-  const jsCode = compileAst(hydratedAST)
-  return jsCode
-}
-
+// --- Standard Library Loading ---
 const stdLibPath = path.resolve(__dirname, '..', 'std', 'std.wisp')
 const stdLibContent = fs.readFileSync(stdLibPath, 'utf8')
 const stdLibAst = hydrate(parse(stdLibContent))
-// Compile the stdlib once to populate its declarations map
+// The 'compileAst' function populates the declarations map via side effects.
 compileAst(stdLibAst)
+
+const injectStdLib = (ast) => {
+  stdLibAst.declarations.forEach((value, key) => {
+    ast.declarations.set(key, value)
+  })
+  return ast
+}
+
+// --- Public API ---
+const compile = (wispCode) => {
+  const rawAST = parse(wispCode)
+  const hydratedAST = injectStdLib(hydrate(rawAST))
+  const jsCode = compileAst(hydratedAST)
+  return jsCode
+}
 
 const compileProject = (entryPath, fileProvider) => {
   const compiledFiles = new Map()
@@ -33,16 +41,18 @@ const compileProject = (entryPath, fileProvider) => {
     processing.add(path)
 
     const code = fileProvider(path)
+    if (typeof code === 'undefined') {
+      // This can happen for imports of JS files, etc.
+      // For now, we just ignore them.
+      processing.delete(path)
+      return
+    }
+
     const rawAST = parse(code)
-    const hydratedAST = hydrate(rawAST)
-
-    // Inject stdlib macros into the root scope
-    stdLibAst.declarations.forEach((value, key) => {
-      hydratedAST.declarations.set(key, value)
-    })
-
+    const hydratedAST = injectStdLib(hydrate(rawAST))
     const { imports } = analyze(hydratedAST)
 
+    console.log('IMPORTS', imports)
     imports.forEach((imp) => {
       compileFile(imp.path)
     })

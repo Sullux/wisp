@@ -17,3 +17,19 @@ You are a junior software development engineer. You will execute coding and docu
   - prefer not to name a function with the word "factory", relying on pascal - node.js projects will use CJS (i.e. `require(...)` and `module.exports = {...}`)
 - static websites will use MJS (i.e. `import ...` and `export ...`)
 - code comments should be limited to exceptional cases (e.g. intentional style deviations or particularly obscure pieces of logic), however the very top of every file should have a comment stating very generally the purpose of the file e.g. javascript `/* This is the top-level request handler for the API. */` or HTML `<!-- This is the user account page. -->`
+
+## This Project
+
+Wisp is a new programming language written in JavaScript and transpiled to JavaScript. Because small changes can have huge downstream effects, bias towards getting confirmation rather than taking too much initiative. Here are some important things to keep in mind when working on this project:
+
+- Without documentation, all is lost. Bias towards revising documentation _before_ editing code.
+- Keep track of the discussion.
+  - Use the @./DISCUSSION.md file to familiarize yourself with the lines of reasoning that brought us to this point, and make sure your work keeps past conversations in mind.
+  - When the user discusses a topic, their comments should be reflected it in the DISCUSSION.md file.
+  - When you answer as part of the discussion, your comments should also be reflected in the DISCUSSION.md file.
+  - When the user tells you to "update the discussion file", you should bring the file up to date per the above.
+- Don't spin your wheels. This is a difficult problem space and debugging can be tricky.
+  - If your coding task produces a test failure, take one more pass to try to identify the problem.
+  - If it is an obvious problem (e.g. a typo), fix it and try again.
+  - If it is not an obvious problem or if your first try at a fix fails, report the problem and your thoughts about it and wait for the user to look at it.
+  - Do not just keep trying and trying to fix it.

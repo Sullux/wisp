@@ -23,7 +23,7 @@ square (=> (x) (* x x))
 
 To export a named value, you use the `export` macro. This macro marks a value for export while still allowing it to be used as a binding within the file.
 
-**Syntax:** `(export <name-as-string> <value>)`
+**Syntax:** `(export <name> <value>)`
 
 The `export` macro evaluates to `<value>`.
 
@@ -34,10 +34,10 @@ The `export` macro evaluates to `<value>`.
 log-prefix '[WISP]'
 
 ; The 'log' function is bound locally AND marked for named export.
-log (export 'log' (=> (msg) (console.log log-prefix msg)))
+log (export log (=> (msg) (console.log log-prefix msg)))
 
 ; The 'add' function is also bound locally and exported.
-add (export 'add' (=> (x y) (+ x y)))
+add (export add (=> (x y) (+ x y)))
 
 ; This module has no default export, so its final value is undefined.
 (do)

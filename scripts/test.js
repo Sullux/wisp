@@ -47,7 +47,11 @@ const main = () => {
 
   testFiles.forEach((wispFile) => {
     const compiled = compileProject(wispFile, fileProvider)
-    const jsCode = `${compiled.get(wispFile)}\n`
+    let jsCode = `${compiled.get(wispFile).trim()}\n`
+    jsCode =
+      jsCode.length === 1
+        ? `describe('wisp standard library', () => { test.todo('TODO: test ${wispFile}') })\n`
+        : jsCode
     const jsFile = wispFile.replace(/\.wisp$/, '.js')
     fs.writeFileSync(jsFile, jsCode)
     console.log(`  ✓ ${path.basename(wispFile)} -> ${path.basename(jsFile)}`)

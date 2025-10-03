@@ -32,7 +32,7 @@ const compile = (rootNode) => {
 
   const visitAssignment = (node) => {
     const { parent, children } = node
-    for(let l = children.length, i = 0; i < l; i += 2) {
+    for (let l = children.length, i = 0; i < l; i += 2) {
       const name = children[i]
       const value = children[i + 1]
       parent.declarations.set(visit(name), value && visit(value))
@@ -41,15 +41,15 @@ const compile = (rootNode) => {
 
   const visitImport = (node) => {
     const { names, path } = node.value
-    const namesStr = names.join(', ')
-    return `const { ${namesStr} } = require('${path}')`
+    const namesStr = names.length ? names.join(', ') : 'default'
+    return `import ${namesStr} from '${path}'`
   }
 
   const visitExport = (node) => {
     const exportedNode = node.children[0]
     if (
-      exportedNode.type === 'expression' &&
-      exportedNode.children[0].value === ':'
+      exportedNode.type === 'expression'
+      && exportedNode.children[0].value === ':'
     ) {
       const name = exportedNode.children[1].value
       const value = visit(exportedNode.children[2])
@@ -65,7 +65,6 @@ const compile = (rootNode) => {
     return '' // Unsupported export form
   }
 
-
   const visitMacro = (node) => {
     const [name] = node.ast
     const [expr] = node.children
@@ -80,7 +79,6 @@ const compile = (rootNode) => {
     const compileRaw = (rawAst) => {
       const hydratedNode = hydrate([rawAst]).children[0]
       hydratedNode.parent = node.parent
-      console.log('HYDRATE', rawAst, hydratedNode)
       return visit(hydratedNode)
     }
 
@@ -114,16 +112,8 @@ const compile = (rootNode) => {
     const head = node.children[0]
 
     if (head.type === 'atom') {
-      console.log('ATOM', head.value)
       if (head.value === ';') return ''
       if (head.value === 'ecma') return node.children[1].value
-      if (head.value === ':') {
-        console.log('FOUND')
-        const name = node.children[1].value
-        const value = visit(node.children[2])
-        node.parent.declarations.set(name, { type: 'variable', value })
-        return `const ${name} = ${value}`
-      }
       if (head.value === '.') {
         const object = visit(node.children[1])
         const property = visit(node.children[2])

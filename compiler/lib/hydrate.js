@@ -23,10 +23,15 @@ const hydrate = (rawAst) => {
           children: ast.map((raw) => walk(raw, parent)),
         })
       }
-      if (head === 'import' && raw[2] === 'from') {
-        const names = raw[1].slice(1)
-        const path = raw[3].value
-        return Node({ type: 'import', parent, ast: raw, value: { names, path } })
+      if (head === 'import') {
+        const names = raw.slice(2)
+        const path = raw[1].value
+        return Node({
+          type: 'import',
+          parent,
+          ast: raw,
+          value: { names, path },
+        })
       }
       if (head === 'export') {
         return Node({
