@@ -1,20 +1,15 @@
 /* This file contains the parser for the Wisp language. */
 
-const UNEXPECTED_TOKEN_IN_CONST_EXPRESSION =
-  'Unexpected token in const expression. Expected identifier, got $1'
-const UNEXPECTED_TOKEN_IN_CONST_VALUE =
-  'Unexpected token in const expression. Expected value, got $1'
 const UNBALANCED_EXPRESSION = 'Unbalanced expression'
 const UNEXPECTED_CHARACTER = 'Unexpected character: $1'
 const UNEXPECTED_EOF = 'Unexpected end of file'
-const UNEXPECTED_TOKEN = 'Unexpected token: $1'
 
 const error = (message, ...args) => {
-  const error = new Error(
+  const err = new Error(
     message.replace(/\$(\d+)/g, (_, i) => args[i - 1] ?? ''),
   )
-  error.stack = ''
-  return error
+  err.stack = ''
+  return err
 }
 
 const parse = (code) => {
@@ -28,12 +23,23 @@ const parse = (code) => {
   }
 
   const peek = () => code[i]
-
   const eof = () => i >= code.length
 
   const parseAtom = () => {
     let atom = ''
-    while (!eof() && !/[\s(){}\[\]]/.test(peek())) {
+    if (peek() === '"') {
+      next() // consume opening "
+      while (!eof() && peek() !== '"') {
+        atom += next()
+      }
+      if (eof()) {
+        throw error(UNBALANCED_EXPRESSION)
+      }
+      next() // consume closing "
+      return `"${atom}"`
+    }
+
+    while (!eof() && !/[\s(){}\[\]"']/.test(peek())) {
       atom += next()
     }
     return atom
@@ -49,7 +55,7 @@ const parse = (code) => {
       str += next()
     }
     next() // consume closing '
-    return { type: 'string', value: str }
+    return [':str', str]
   }
 
   const parseList = () => {
@@ -61,52 +67,71 @@ const parse = (code) => {
     }
 
     const list = []
-    if (peek()===';'){
-      list.push(';')
-      next()
-    }
-    while (peek() !== endChar) {
-      if (eof()) {
-        throw error(UNBALANCED_EXPRESSION)
-      }
+    while (!eof() && peek() !== endChar) {
       const expr = parseExpr()
-      if (expr) list.push(expr)
-      while (/\s/.test(peek())) {
+      if (expr !== null) {
+        list.push(expr)
+      }
+      while (!eof() && /\s/.test(peek())) {
         next()
       }
     }
-    next() // consume closing )
 
-    return startChar === '(' ? list : [startChar, ...list]
+    if (eof()) {
+      throw error(UNBALANCED_EXPRESSION)
+    }
+    next() // consume closing delimiter
+
+    return startChar === '('
+      ? list
+      : startChar === '['
+      ? [':seq', ...list]
+      : [':map', ...list]
   }
 
   const parseExpr = () => {
-    while (/\s/.test(peek())) {
+    while (!eof() && /\s/.test(peek())) {
       next()
     }
+
     if (eof()) {
       return null
     }
+
     const char = peek()
+
     if (char === ';') {
       while (!eof() && peek() !== '\n') {
         next()
       }
       return null
     }
+
     if (char === '(' || char === '[' || char === '{') {
       return parseList()
-    } else if (char === "'") {
-      return parseString()
-    } else {
-      return parseAtom()
     }
+
+    if (char === "'") {
+      return parseString()
+    }
+
+    const atom = parseAtom()
+
+    if (/^"/.test(atom)) {
+      return atom
+    }
+
+    if (!isNaN(parseFloat(atom)) && isFinite(atom)) {
+      return parseFloat(atom)
+    }
+
+    return atom
   }
 
   const ast = []
   while (!eof()) {
     const expr = parseExpr()
-    if (expr) {
+    if (expr !== null) {
       ast.push(expr)
     }
   }
