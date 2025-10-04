@@ -17,6 +17,7 @@ You are a junior software development engineer. You will execute coding and docu
   - prefer not to name a function with the word "factory", relying on pascal - node.js projects will use CJS (i.e. `require(...)` and `module.exports = {...}`)
 - static websites will use MJS (i.e. `import ...` and `export ...`)
 - code comments should be limited to exceptional cases (e.g. intentional style deviations or particularly obscure pieces of logic), however the very top of every file should have a comment stating very generally the purpose of the file e.g. javascript `/* This is the top-level request handler for the API. */` or HTML `<!-- This is the user account page. -->`
+- don't forget to end every file with a new line
 
 ## This Project
 
