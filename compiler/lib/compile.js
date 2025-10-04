@@ -11,8 +11,10 @@ const exists = (v) => !!v
 const compile = (rootNode) => {
   const visit = (node) => {
     switch (node.type) {
-      case 'assignment':
-        return visitAssignment(node)
+      case 'object':
+        return visitObject(node)
+      case 'array':
+        return visitArray(node)
       case 'macro':
         return visitMacro(node)
       case 'expression':
@@ -30,7 +32,19 @@ const compile = (rootNode) => {
     }
   }
 
-  const visitAssignment = (node) => {
+  const visitObject = (node) => {
+    const { children } = node
+    for (let l = children.length, i = 0; i < l; i += 2) {
+      const name = children[i]
+      const value = children[i + 1]
+      if (value.type === 'import') {
+        //
+      }
+      parent.declarations.set(visit(name), value && visit(value))
+    }
+  }
+
+  const visitArray = (node) => {
     const { parent, children } = node
     for (let l = children.length, i = 0; i < l; i += 2) {
       const name = children[i]
@@ -40,13 +54,14 @@ const compile = (rootNode) => {
   }
 
   const visitImport = (node) => {
-    const { names, path } = node.value
+    const path = node.value
     const namesStr = names.length ? names.join(', ') : 'default'
     return `import ${namesStr} from '${path}'`
   }
 
   const visitExport = (node) => {
     // TODO: change this to MJS
+    console.log('???', node)
     const exportedNode = node.children[0]
     if (
       exportedNode.type === 'expression'

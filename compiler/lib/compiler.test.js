@@ -27,8 +27,4 @@ describe('Wisp Compiler', () => {
       expect(compile(wispCode)).toBe('+(+(10, 1), 1)')
     })
   })
-
-  describe('Special Forms', () => {
-    // All special forms are now macros in the stdlib
-  })
 })

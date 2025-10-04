@@ -315,3 +315,208 @@ This has been an incredibly clarifying discussion. Here is the new, comprehensiv
 7.  **Fix the Tests:** Update `std.test.wisp` to use the final, correct syntax.
 
 This is a bold and exciting direction. It will result in a language that is far more consistent, powerful, and elegant. I am ready to update the documentation when you are.
+
+==Charles==
+
+We are mostly agreed. The one thing I would point out is that it is not necessary to make the exported identifier a string as in your example of `(export 'pi' 3.14)`. Since `export` is handled at a low level (during hydrate and compile), we can follow the same convention used by JavaScript and represent exported symbols as identifiers i.e. `(export pi 3.14)`. This also fits better with our model of implicit key/value pairs in e.g. in a scoped expression or object definition; thus:
+
+- `(-> x 40 y 2 (+ x y))` where `x` and `y` are value names
+- `{ x 40 y 2 }` where `x` and `y` are keys (value names scoped to an object)
+- `(export x 40 y 2)` where `x` and `y` are exported value identifiers
+
+Additionally, I've been thinking about our concepts around module loading and the standard library. I think we can make our lives easier by starting with a few fundamental principles and refactoring our compiler and module loader to match.
+
+To start, we currently have only a small number of truly built-in language features, and the rest of the language emerges from a standard library. This is the right approach; however, our language is somewhat inconsistent. I think our idea to use a `:macro` function as a special form is going to be the key to the best answer, but let me spell out why I think our current approach is inconsistent.
+
+Here are the low-level language features that we pick out at parse and hydration time along with the names I am giving them for the purpose of this discussion (note that the names are NOT intended to correspond to the JavaScript features of the same name i.e. the conceptual `map` construct in raw Wisp AST is NOT related to a JavaScript `Map` object)
+
+- Parse
+  - `list`: These are defined by `(...)` and are the core language feature.
+  - `atom`: Atoms are any text that is none of `{}()[]'` and not whitespace.
+  - `map`: These are defined by `{...}`.
+  - `sequence`: These are defined by `[...]`.
+  - `string`: A literal string
+- Hydrate
+  - `macro`: An function to be called at compile time.
+  - `ecma`: A string to be treated as literal compiler output.
+  - `import`: An import from another module.
+  - `export`: An export available to other modules.
+  - `map`: A map of elements as key/value pairs.
+  - `sequence`: An array of elements.
+  - `atom`: A value that is either an identifier or a number literal.
+  - `string`: A literal string.
+  - `expression`: A compile-time or runtime function call.
+
+As I look at this, the concepts from a raw AST (the "parsed" value) map only loosely to the concepts from the rich AST (the "hydrated" value). Additionally, as far as the actual data in the rich AST, there are some fairly major gaps. I think this creates a few problems. Here are some problems I see offhand:
+
+- The raw AST can only be interpreted by logic that has intimate knowledge of the inner workings of the compiler. For example:
+  - if I am writing a macro and want to output a string, I need to know the magic form of `{ type: 'string', value: ... }`
+  - if I am writing a macro and want to output a map, I need to know the magic form of `['{', ...]`
+- Apart from strings we have no consistent way to communicate literals, nor even any idea what literals we support.
+- The `ecma` special form is oddly implemented as part of the `:macro` compiler.
+- While we can indicate runtime imports and exports, there is no provision for compile-time imports and exports (i.e. macros).
+- There is no way to include "plugins" at module load time; thus, we are left to use special magic to import our standard library at compile time.
+
+I think I have some straightforward answers to these problems, and I am going to lay them out here. Note that for this dicussion when I refer to the "compiler" I am referring to the full chain of `parse->hydrate->compile`.
+
+1. Use the colon to designate a primitive.
+
+We already do this with `:macro`, but there are many other primitives in Wisp and most of them do not have a designation.
+
+2. Allow primitives to be provided explicitly.
+
+While we may allow shortcut syntax such as `[value1 value2]`, we should be able to compile `(:seq value1 value2)` just as well.
+
+3. Document the Compiler.
+
+I described `list`, `atom`, etc. as coming from the parser, but we can do better. By defining the complete set of primitives, we can make the parser -- and indeed the entire compilation chain -- both smarter and simpler, while also improving the documentation. A note on convention: for this guide I will borrow from my limited knowledge of EBNF. Here are some conventions for the description language in this guide:
+
+- `:foo | :bar` means "one of `:foo` or `:bar`"
+- `(:foo | :bar) :baz` means "one of `:foo` or `:bar`, followed by `:baz`"
+- `[:foo]` means "zero or one `:foo`"
+- `[n :foo]` means "zero to n `:foo`"
+- `[1-n :foo]` means "one to n `:foo`"
+- `[!:foo]` means "anything but `:foo`"
+- `:foo{:bar}` means "`:foo` of type `:bar`"
+- `:list{:foo :bar}` means "a list (parenthesis in Wisp) containing `:foo` followed by `:bar`"
+- `"("` means an opening parenthese
+- ` ` a single space means one to _n_ whitespace characters
+
+First, a list of abstract primitives. These exist solely for documentation and are not valid in an AST:
+
+- `:s`: one or more consecutive whitespace characters
+- `[0-9]`: a number character 0-9
+- `:b`: a "breaking" character `:s | "(" | ")" | "[" | "]" | "{" | "}" | "'" | BOF | EOF`
+- `:a`: any character that is not a "breaking" character i.e. `[!:b]`
+- `:A`: any character that is not a number character and not a breaking character i.e. `([![0-9]] | [!:b])`
+- `:q`: a literal quote `"`
+- `<n>`: a value surrounded by breaking characters i.e. `:b n :b`
+- `:expr`: `:ref | :call | :literal`
+- `:named`: a named value visible in the current scope
+- `:ref`: an atom that refers to a `:named`
+- `:res{n}`: `n | :ref{n}`
+- `:call`: `:list{:res{:fn} [n :expr]}`
+- `:literal`: `:str | :num | :bool`
+- `:string`: text that follows the rules for a [JavaScript string literal](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar#string_literals)
+- `:number`: text that follows the rules for a [JavaScript numeric literal](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar#numeric_literals)
+
+Following is the list of concrete primitives i.e. primitives that can appear explicitly in the compiler and AST. We sometimes refer to these as "special forms". Note that the AST examples below are written in JavaScript since the compiler is currently written in JavaScript, but that is just for convenience.
+
+- `:atom` A name e.g. variable name, object propety name, exported value, etc.
+  - `<:A [0-n :a]>`
+  - `:q :a :q`
+  - wisp:
+    - `foo` valid
+    - `f44` valid
+    - `_?+` valid
+    - `4xyz` INVALID (begins with a number)
+    - `"4xyz"` valid (because it is quoted)
+  - raw AST:
+    - `foo`
+    - `"42"`
+  - rich AST:
+    - `{ atom: 'foo' }`
+    - `{ atom: '42' }`
+- `:list` A parenthetical, the core construct of Wisp.
+  - `"(" [:s] [0-n <:expr>] [:s] ")"`
+  - wisp: `(element1 element2)`
+  - raw AST: `['element1', 'element2']`
+  - rich AST: `{ list: [{ atom: 'element1' }, { atom: 'element2' }] }`
+- `:str` A string literal.
+  - `list{":str '" :string "'"}`
+  - `"'" :string "'"`
+  - wisp:
+    - `(:str 'foo')`
+    - `<'foo'>`
+  - raw AST: `[':str', 'foo']`
+  - rich AST: `{ str: 'foo' }`
+- `:num` A number literal.
+  - `(:num :number)`
+  - `<:number>`
+  - wisp:
+    - `(:num 42)`
+    - `42`
+  - raw AST: `[':num', 42]`
+  - rich AST: `{ num: 42 }`
+- `:t` The constant boolean "true"
+  - `<:t>`
+  - wisp: `(log :t)`
+  - raw AST: `':t'`
+  - rich AST: `{ bool: true }`
+- `:f` The constant boolean "false"
+  - `<:f>`
+  - wisp: `(log :f)`
+  - raw AST: `':f'`
+  - rich AST: `{ bool: true }`
+- `:label` A name/value pair.
+  - `:list{":label" :atom :expr}`
+  - wisp: `(:label foo 42)`
+  - raw AST: `[':label' 'foo', 42]`
+  - rich AST: `{ label: { name: { atom: 'foo' }, value: { num: 42 } } }`
+- `:map` A set of name/value pairs.
+  - `:list{":map" [0-n :label{<:atom> <:expr>}]}`
+  - `"{" [0-n :label{<:atom> <:expr>}] "}"`
+  - wisp:
+    - `(:map (:label foo 42) (:label bar 'baz'))` explicit labels
+    - `(:map foo 42 bar 'baz')` implicit labels
+    - `{ foo 42 bar 'baz' }` shortcut syntax
+  - raw AST:
+    - `[
+      ':map',
+      [':label' 'foo', 42],
+      [':label' 'bar', [':str', 'baz']],
+    ]`
+    - `[':map', 'foo', 42, 'bar', [':str', 'baz']]`
+  - rich AST: `{
+    map: {
+      { label: { name: { atom: 'foo' }, value: { num: 42 } } },
+      { label: { name: { atom: 'bar' }, value: { str: 'baz' } } },
+    },
+  }`
+- `:seq` A sequential list of expressions.
+  - `:list{":seq" [0-n <:expr>]}`
+  - wisp:
+    - `(:seq foo :t)`
+    - `[foo :t]`
+  - raw AST: `[':seq', 'foo', true]`
+  - rich AST: `{ seq: [{ atom: 'foo' }, { bool: true }] }`
+- `:src` A reference to the source of the parsed/compiled AST. This has no wisp representation but can appear in AST as:
+  - raw AST: `[':src', 'foo.wisp:3:7:3:9', [':num', 42]]`
+  - rich AST: `{
+    src: ['foo.wisp:3:7:3:9', { num: 42 }]
+  }`
+  - NOTE: the data in a source reference is an `:atom` that is comprised of a colon-delimited string. When split on the colon, the source string produces an array of the following values:
+    - name: the name of the source (e.g. 'foo.wisp', 'REPL', 'stdlib', etc.)
+    - start line: the 1-based line number on which the current expression started
+    - start offset: the 1-based offset in the line on which the current expression started
+    - end line: the 1-based line number on which the current expression ended
+    - end offset: the 1-based offset in the line on which the current expression ended
+
+It should be clear that everything above this point is generic enough to have no real connection to JavaScript. For example, the above could be used for a pure data representation in the style of JSON (perhaps called "WON" for "Wisp Object Notation"?). In another case, the above could be used to create a query language like "WQL" for "Wisp Query Language".
+
+The above is also the line we draw under the parser and compiler. The parser takes a wisp string and returns a raw AST array and the compiler takes a raw AST array and produces rich AST. I do not like the "hydrate" terminology we have been using to this point. Instead, we "parse" to an array, we "compile" to an object, and then later we "link" to create something executable (whether that be immediately executable as in a REPL or a transpiled executable like a JavaScript file or other).
+
+The linker is where we "link" rich AST to a standard library of functions. This is what allows Wisp like `(foo 42)` to be executed: the linker knows the `foo` function and can call it (or transpile a call to it, etc.). The linker is also where we do any static analysis.
+
+For this project, we are creating two levels of linker. The first is called the "Core Library" ("corelib"). Corelib defines concepts that are fairly universal to programming languages (function definitions, conditionals, etc.). Corelib contains the following:
+
+- `:parse` Compile a string to raw AST.
+- `:compile` Compile raw AST to rich AST.
+- `:link` Link rich AST with a library.
+- `:module` Defines a module i.e. a library.
+- `:import` Defines an import from another module.
+- `:export` Defines an export from the current module.
+- `:dr` The dereference operator (like `.` in JavaScript).
+- `:args` The arguments passed into the current function.
+- `:se` A scoped expression.
+- `:fn` A function.
+- `:asn` Assignment (like JavaScript `let`)
+- `:macro` A compile-time expression.
+
+Because our first compiler implementation is in JavaScript, corelib will simply be a JavaScript object with the above functions in the form of `const corelib = { ':parse': (text) => {...}, ... }`. Compiling a module all the way from raw text to JavaScript might look like `link(corelib, compile(parse(sourceCode)))`. Since they are simple objects, combining multiple libraries for the linking process is as simple as `{ ...corelib, ...otherlib, ... }`. In the future we may even be able to find a way to link with e.g. C libraries, but for now we'll stick with JavaScript.
+
+The next level of library support will be to allow compilation all the way to JavaScript output. This will be the "JS Core Library" ("jscorelib") and can be layered on top of corelib to provide the full Wisp-to-JavaScript experience. This is where we get macros like `(:macro true :t)`, enabling the alias `true` to be used in our Wisp code instead of the primitive `:t`. In fact, jscorelib is what should enable most source code to rarely nead anything that starts with colon. Jscorelib is what abstracts away the low-level constructs and creates a user-friendly programming language.
+
+This is also where we get scoped expression shorthand `(-> val1 40 val2 2 (+ 40 2))` and function shorthand `(=> (x y) (+ x y))`. This is where we get the default argument alias `_` and automatic currying and string templates and spread/rest syntax and all of the other language features that will make Wisp such a nice coding experience, and it is all built on top of the core library, the linker, the compiler and the parser.
+
+This was all a lot to think about. Before we start talking about what work to do next it would be helpful to get your thoughts. I am not looking for next steps; I am more interested in weighing the value of this approach and discussing pros, cons and alternative strategies where applicable.

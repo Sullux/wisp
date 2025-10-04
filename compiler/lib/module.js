@@ -30,13 +30,10 @@ const Module = (entryPath, { fileCache = {}, loader = defaultLoader } = {}) => {
     const hydratedAST = hydrate(rawAST, stdLibAst)
     const { imports } = analyze(hydratedAST)
 
-    console.log('IMPORTS', imports)
-    imports.forEach((imp) => {
-      compileFile(imp.path)
-    })
+    imports.map(({ path }) => path).forEach(compileFile)
 
     processing.delete(path)
-    return compile(hydratedAST)
+    return (fileCache[path] = compile(hydratedAST))
   }
 
   const jsCode = compileFile(entryPath)

@@ -14,23 +14,30 @@ const hydrate = (rawAst, rootParent) => {
           ast: raw.slice(1),
           children: [walk(raw[2], parent)],
         })
-      if (head === ':') {
-        const ast = raw.slice(1)
+      if (head === '{') {
+        const pairs = raw.slice(1)
         return Node({
-          type: 'assignment',
+          type: 'object',
           parent,
-          ast,
-          children: ast.map((raw) => walk(raw, parent)),
+          ast: pairs,
+          children: pairs.map((element) => walk(element, parent)),
+        })
+      }
+      if (head === '[') {
+        const elements = raw.slice(1)
+        return Node({
+          type: 'array',
+          parent,
+          ast: elements,
+          children: elements.map((element) => walk(element, parent)),
         })
       }
       if (head === 'import') {
-        const names = raw.slice(2)
-        const path = raw[1].value
         return Node({
           type: 'import',
           parent,
           ast: raw,
-          value: { names, path },
+          value: raw[1].value, // must be a string
         })
       }
       if (head === 'export') {
@@ -38,7 +45,7 @@ const hydrate = (rawAst, rootParent) => {
           type: 'export',
           parent,
           ast: raw,
-          children: [walk(raw[1], parent)],
+          children: [walk(raw.slice(1), parent)],
         })
       }
       const node = Node({ type: 'expression', parent, ast: raw })
