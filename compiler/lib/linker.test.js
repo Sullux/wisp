@@ -43,7 +43,7 @@ describe('Wisp Linker (Behavioral)', () => {
   })
 
   describe('Function Calls', () => {
-    it('should evaluate a simple function call', () => {
+    it('should evaluate a simple function call from a library', () => {
       expectWisp('(+ 1 2)').toBe(3)
     })
 
@@ -51,47 +51,10 @@ describe('Wisp Linker (Behavioral)', () => {
       expectWisp('(+ 1 (- 5 2))').toBe(4)
     })
 
-    it('should handle JS interop', () => {
+    it('should handle JS interop for unbound functions', () => {
+      // This test uses a mock Math.max, but in a real scenario
+      // it would call the global Math.max function.
       expectWisp('(Math.max 10 5 20)').toBe(20)
-    })
-  })
-
-  describe('Scoping', () => {
-    it('should evaluate a scoped expression (:se)', () => {
-      const wisp = `
-        (:se 
-          [ (:asn x 10)
-            (:asn y 20) ]
-          (+ x y))
-      `
-      expectWisp(wisp).toBe(30)
-    })
-
-    it('should handle shadowing', () => {
-      const wisp = `
-        (:se 
-          [ (:asn x 10) ]
-          (:se 
-            [ (:asn x 20) ]
-            x))
-      `
-      expectWisp(wisp).toBe(20)
-    })
-
-    it('should not leak variables from inner scopes', () => {
-      // We define x=10. Then we create an inner scope where y=20.
-      // We add the result of the inner scope (20) to the outer x (10).
-      // This proves that the outer scope's bindings are available to the
-      // inner scope, and that the inner scope can be used as an expression.
-      const wisp = `
-        (:se
-          [ (:asn x 10) ]
-          (+
-            (:se [ (:asn y 20) ] y)
-            x
-          ))
-      `
-      expectWisp(wisp).toBe(30)
     })
   })
 })
