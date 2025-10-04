@@ -98,6 +98,26 @@ describe('Wisp Parser', () => {
       expect(parse(code)).toEqual([['foo', 'bar']])
     })
 
+    it('should parse a block comment', () => {
+      const code = '(; this is a comment block 123)'
+      const expected = [[':comment', 'this', 'is', 'a', 'comment', 'block', 123]]
+      expect(parse(code)).toEqual(expected)
+    })
+
+    it('should parse an empty block comment', () => {
+      expect(parse('(;)')).toEqual([[':comment']])
+    })
+
+    it('should parse an inline block comment', () => {
+      const code = '(foo (; bar) baz)'
+      const expected = [['foo', [':comment', 'bar'], 'baz']]
+      expect(parse(code)).toEqual(expected)
+    })
+
+    it('should preserve line comment behavior inside lists', () => {
+      const code = '(foo ; bar\n)'
+      expect(parse(code)).toEqual([['foo']])
+    })
   })
 
   describe('Complex and Nested Structures', () => {

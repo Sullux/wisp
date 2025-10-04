@@ -138,6 +138,14 @@ A compiler-internal primitive used to wrap another AST node with source location
 -   **Rich AST:** `{ src: ['foo.wisp:3:7:3:9', {...}] }`
 -   **Source String Format:** `filename:start_line:start_col:end_line:end_col`
 
+### 4.10. `:comment`
+
+A comment block. The linker will parse and compile the contents of a comment block, but will ignore it and produce no output. This allows for multi-line comments and for commenting out entire S-expressions.
+
+-   **Syntax:** `(; ...any content...)`
+-   **Raw AST:** `[':comment', <...any content...>]`
+-   **Rich AST:** `{ comment: [...] }`
+
 ---
 
 ## 5. The Core Library (`corelib`)

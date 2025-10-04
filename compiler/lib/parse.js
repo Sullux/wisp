@@ -66,6 +66,16 @@ const parse = (code) => {
       throw error(UNEXPECTED_CHARACTER, startChar)
     }
 
+    // Skip initial whitespace to check for comment
+    while (!eof() && /\s/.test(peek())) {
+      next()
+    }
+
+    const isComment = startChar === '(' && peek() === ';'
+    if (isComment) {
+      next() // consume the ';'
+    }
+
     const list = []
     while (!eof() && peek() !== endChar) {
       const expr = parseExpr()
@@ -81,6 +91,10 @@ const parse = (code) => {
       throw error(UNBALANCED_EXPRESSION)
     }
     next() // consume closing delimiter
+
+    if (isComment) {
+      return [':comment', ...list]
+    }
 
     return startChar === '('
       ? list
