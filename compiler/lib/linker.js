@@ -11,7 +11,18 @@ const error = (node, message, ...args) => {
   return err
 }
 
-const { Environment } = require('./environment')
+const link = (richAst, library) => {
+  const env = Environment(library)
+  const linkedNodes = richAst.map(node => linkNode(node, env))
+  
+  if (linkedNodes.length > 1) {
+    const lastIndex = linkedNodes.length - 1
+    linkedNodes[lastIndex] = `return ${linkedNodes[lastIndex]}`
+    return `(() => {\n  ${linkedNodes.join(';\n  ')};\n})()`
+  }
+
+  return linkedNodes[0] || ''
+}
 
 const linkNode = (node, env) => {
   if (!node || !node.src) {
@@ -30,43 +41,33 @@ const linkNode = (node, env) => {
       return String(node.bool)
     case 'atom': {
       const value = env.find(node.atom)
-      return value === null ? node.atom : value
+      return value === null ? node.atom.replace(/-/g, '__') : value
     }
     case 'list': {
       const [fnNode, ...argNodes] = node.list
       const fnName = fnNode.atom
-      const fn = env.find(fnName)
-      const linkedArgs = argNodes.map(arg => linkNode(arg, env))
+      
+      const specialForm = env.findSpecialForm(fnName)
+      if (specialForm) {
+        return specialForm(argNodes, env, linkNode)
+      }
 
-      if (typeof fn === 'function') {
-        // It's a special form or a library function
-        // Library functions expect transpiled strings
-        if (fnName.startsWith(':')) {
-          // Special forms expect AST nodes
-          return fn(argNodes, env, linkNode)
-        }
-        return fn(linkedArgs)
+      const libraryFn = env.findFunction(fnName)
+      const linkedArgs = argNodes.map(arg => linkNode(arg, env))
+      if (libraryFn) {
+        return libraryFn(linkedArgs)
       }
       
-      // Assume it's a JS function call
-      return `${fnName}(${linkedArgs.join(', ')})`
+      const linkedFnName = linkNode(fnNode, env)
+      return `${linkedFnName}(${linkedArgs.join(', ')})`
     }
     default:
       return '' // Ignore comments, etc.
   }
 }
 
-const link = (richAst, library) => {
-  const globalEnv = Environment(library)
-  const linkedNodes = richAst.map(node => linkNode(node, globalEnv))
-  
-  if (linkedNodes.length > 1) {
-    const lastIndex = linkedNodes.length - 1
-    linkedNodes[lastIndex] = `return ${linkedNodes[lastIndex]}`
-    return `(() => {\n  ${linkedNodes.join(';\n  ')};\n})()`
-  }
+const { Environment } = require('./environment')
 
-  return linkedNodes[0] || ''
-}
+
 
 module.exports = { link }

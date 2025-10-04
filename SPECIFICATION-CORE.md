@@ -195,15 +195,6 @@ These primitives expose the compiler's own pipeline, allowing for powerful metap
         -   `bindings-sequence`: A `:seq` containing zero or more `:asn` expressions.
         -   `return-expression`: The final `:expr` to be evaluated.
     -   **Description:** Creates a new lexical scope. It first evaluates all assignments in the `bindings-sequence`, making them available within the scope. It then evaluates and returns the value of the `return-expression`.
-    -   **Example:**
-        ```wisp
-        ; Create a scope, bind x to 10 and y to 20, then return their sum.
-        (:se
-          (:seq
-            (:asn x 10)
-            (:asn y 20))
-          (+ x y)) ; Assuming '+' is linked, this evaluates to 30.
-        ```
 
 ### 5.3. Functions
 
@@ -218,11 +209,6 @@ These primitives expose the compiler's own pipeline, allowing for powerful metap
         -   `collection`: An expression that evaluates to a `:seq` or `:map`.
         -   `key`: An expression that evaluates to a `:num` (for a `:seq`) or an `:atom` (for a `:map`).
     -   **Description:** Extracts a value from a collection.
-    -   **Example:**
-        ```wisp
-        ; Get the first argument passed to a function
-        (:dr :args 0)
-        ```
 
 -   **`:fn` (Function)**
     -   **Syntax:** `(:fn bindings-and-args-sequence return-expression)`
@@ -230,32 +216,43 @@ These primitives expose the compiler's own pipeline, allowing for powerful metap
         -   `bindings-and-args-sequence`: A `:seq` of `:asn` expressions. These are used to formally bind arguments from `:args` to names, and to create other local bindings.
         -   `return-expression`: The `:expr` that serves as the function's body and return value.
     -   **Description:** Defines a function. The function is a non-invoked expression that can be stored in a binding and called later. When called, the arguments are available via the `:args` special form.
-    -   **Example:**
-        ```wisp
-        ; Defines a function that takes two arguments and returns their sum.
-        (:fn
-          ; Bind 'a' to the first argument and 'b' to the second.
-          (:seq
-            (:asn a (:dr :args 0))
-            (:asn b (:dr :args 1)))
-          ; Return the result of adding them.
-          (+ a b))
-        ```
 
-### 5.4. Modules
+### 5.4. Control Flow and Logic
+
+-   **`:if` (Conditional)**
+    -   **Syntax:** `(:if condition then-expression [else-expression])`
+    -   **Operands:**
+        -   `condition`: An `:expr` that evaluates to a boolean.
+        -   `then-expression`: The `:expr` to evaluate if the condition is true.
+        -   `else-expression`: An optional `:expr` to evaluate if the condition is false.
+    -   **Description:** Evaluates the `condition`. If it is true, the `then-expression` is evaluated and returned. Otherwise, the `else-expression` is evaluated and returned. If the `else-expression` is omitted and the condition is false, the result is `undefined`.
+
+-   **`:eq` (Equality)**
+    -   **Syntax:** `(:eq left-expression right-expression)`
+    -   **Operands:**
+        -   `left-expression`: An `:expr`.
+        -   `right-expression`: An `:expr`.
+    -   **Description:** Evaluates both expressions and returns `:t` if they are equal, otherwise returns `:f`. The definition of "equal" is platform-dependent but should strive for value-based equality.
+
+-   **`:do` (Sequence)**
+    -   **Syntax:** `(:do expression1 [expression2 ...])`
+    -   **Operands:** One or more expressions.
+    -   **Description:** Evaluates all expressions in order, returning the value of the final expression. This is the primary primitive for sequencing side-effects.
+
+### 5.5. Modules
 
 -   **`:import`**
     -   **Syntax:** `(:import path)`
     -   **Operands:**
         -   `path`: A `:str` representing the path to the module.
-    -   **Description:** Imports a module. The result of this expression is a `:map` where the keys are the exported names and the values are the exported values.
+    -   **Description:** Imports a module. The result of this expression is a `:map` where the keys are the exported names and the values are the exported values. The exact mechanism for module resolution is platform-dependent.
 
 -   **`:export`**
     -   **Syntax:** `(:export name value)`
     -   **Operands:**
         -   `name`: An `:atom` for the exported name.
         -   `value`: The `:expr` to be exported.
-    -   **Description:** Marks a value for export from a module.
+    -   **Description:** Marks a value for export from a module. This form evaluates to `value`, allowing it to be used inside other expressions, such as `(:asn my-var (:export my-var 42))`.
 
 -   **`:module`**
     -   **Syntax:** `(:module scoped-expression)`
@@ -263,7 +260,7 @@ These primitives expose the compiler's own pipeline, allowing for powerful metap
         -   `scoped-expression`: A `:se` that defines the module's contents.
     -   **Description:** Defines a module. The module's public interface is determined by the `:export` expressions used within its scope. The result of a linked module is a `:map` of its exports.
 
-### 5.5. Metaprogramming
+### 5.6. Metaprogramming
 
 -   **`:macro`**
     -   **Syntax:** `(:macro name function-definition)`

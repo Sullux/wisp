@@ -2,25 +2,74 @@
 
 const { Environment } = require('./environment')
 
-const corelib = {
+const sanitize = (name) => name.replace(/-/g, '__')
+
+const specialForms = {
   ':se': (argNodes, env, linkNode) => {
     const localEnv = Environment({}, env)
     const [bindingsNode, returnExpression] = argNodes
 
     const linkedBindings = bindingsNode.seq.map(b => {
-      // b is a :src wrapped list: [':src', '...', [':asn', name, value]]
       const asnNode = b.list
       const name = asnNode[1].atom
       const valueNode = asnNode[2]
       const value = linkNode(valueNode, localEnv)
-      localEnv.set(name, name) // Bind the name to itself for lookup
-      return `const ${name} = ${value}`
+      const sanitizedName = sanitize(name)
+      localEnv.set(name, sanitizedName)
+      return `let ${sanitizedName} = ${value}`
     })
 
     const linkedReturn = linkNode(returnExpression, localEnv)
 
     return `(() => {\n  ${linkedBindings.join(';\n  ')};\n  return ${linkedReturn};\n})()`
   },
+
+  ':fn': (argNodes, env, linkNode) => {
+    const localEnv = Environment({}, env)
+    localEnv.set(':args', '_args')
+
+    const [bindingsNode, returnExpression] = argNodes
+
+    const linkedBindings = bindingsNode.seq.map(b => {
+      const asnNode = b.list
+      const name = asnNode[1].atom
+      const valueNode = asnNode[2]
+      const value = linkNode(valueNode, localEnv)
+      const sanitizedName = sanitize(name)
+      localEnv.set(name, sanitizedName)
+      return `let ${sanitizedName} = ${value}`
+    })
+
+    const linkedReturn = linkNode(returnExpression, localEnv)
+
+    return `((..._args) => {\n  ${linkedBindings.join(';\n  ')};\n  return ${linkedReturn};\n})`
+  },
+
+  ':if': (argNodes, env, linkNode) => {
+    const [condition, thenExpr, elseExpr] = argNodes
+    const linkedCondition = linkNode(condition, env)
+    const linkedThen = linkNode(thenExpr, env)
+    const linkedElse = elseExpr ? linkNode(elseExpr, env) : 'undefined'
+    return `(${linkedCondition} ? ${linkedThen} : ${linkedElse})`
+  },
+
+  ':do': (argNodes, env, linkNode) => {
+    const linkedNodes = argNodes.map(node => linkNode(node, env))
+    if (linkedNodes.length === 1) {
+      return linkedNodes[0]
+    }
+    const lastIndex = linkedNodes.length - 1
+    linkedNodes[lastIndex] = `return ${linkedNodes[lastIndex]}`
+    return `(() => {\n  ${linkedNodes.join(';\n  ')};\n})()`
+  },
 }
 
-module.exports = { corelib }
+const functions = {
+  ':dr': (args) => `${args[0]}[${args[1]}]`,
+  ':eq': (args) => `(${args.join(' === ')})`,
+}
+
+const corelib = { ...specialForms, ...functions }
+
+module.exports = { corelib, specialForms, functions }
+

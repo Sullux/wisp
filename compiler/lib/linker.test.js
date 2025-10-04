@@ -6,10 +6,11 @@ const { parse } = require('./parse')
 
 // A mock jscorelib for testing code generation
 const jscorelib = {
-  '+': (args) => `(${args.join(' + ')})`,
-  '-': (args) => `(${args.join(' - ')})`,
-  // For testing JS interop
-  'Math.max': (args) => `Math.max(${args.join(', ')})`,
+  functions: {
+    '+': (args) => `(${args.join(' + ')})`,
+    '-': (args) => `(${args.join(' - ')})`,
+    'Math.max': (args) => `Math.max(${args.join(', ')})`,
+  }
 }
 
 const transpile = (code) => link(compile(parse(code)), jscorelib)
