@@ -142,19 +142,119 @@ A compiler-internal primitive used to wrap another AST node with source location
 
 ## 5. The Core Library (`corelib`)
 
-`corelib` provides the fundamental, platform-agnostic logic required to give the language semantic meaning. It is the first library used by the **linker**.
+`corelib` provides the fundamental, platform-agnostic logic required to give the language semantic meaning. It is the first library used by the **linker**. Its primitives are the essential building blocks for creating abstractions.
 
-| Primitive | Description |
-| :--- | :--- |
-| **`:parse`** | A function that takes a string of Wisp code and returns a raw AST. |
-| **`:compile`** | A function that takes a raw AST and returns a rich AST. |
-| **`:link`** | A function that takes a rich AST and a library, returning a linked/executable result. |
-| **`:module`** | Defines a module, which is a library of exports. |
-| **`:import`** | Defines an import from another module. |
-| **`:export`** | Defines a value to be exported from the current module. |
-| **`:dr`** | The dereference operator. Used for accessing properties of a map or object (e.g., `.` in JavaScript). |
-| **`:args`** | A special form that resolves to the arguments passed into the current function scope. |
-| **`:se`** | A **scoped expression**. Creates a new lexical scope, allows for local bindings, and evaluates to a final expression. |
-| **`:fn`** | A **function**. A non-invoked scoped expression that can be called with arguments. |
-| **`:asn`** | **Assignment**. Binds a value to a name within the current scope (e.g., `let` in JavaScript). |
-| **`:macro`** | A compile-time function. It is executed by the linker, and its return value (a rich AST) is linked in its place. |
+### 5.1. Compiler API
+
+These primitives expose the compiler's own pipeline, allowing for powerful metaprogramming.
+
+-   **`:parse`**
+    -   **Syntax:** `(:parse source-string)`
+    -   **Operands:**
+        -   `source-string`: A `:str` containing Wisp code.
+    -   **Description:** Parses the source string and returns a raw AST.
+
+-   **`:compile`**
+    -   **Syntax:** `(:compile raw-ast)`
+    -   **Operands:**
+        -   `raw-ast`: A `:seq` representing a raw AST.
+    -   **Description:** Compiles the raw AST and returns a rich AST.
+
+-   **`:link`**
+    -   **Syntax:** `(:link rich-ast library)`
+    -   **Operands:**
+        -   `rich-ast`: A rich AST object.
+        -   `library`: A `:map` of functions to link against.
+    -   **Description:** Links the rich AST with the provided library to produce an executable result.
+
+### 5.2. Scoping and Bindings
+
+-   **`:asn` (Assignment)**
+    -   **Syntax:** `(:asn name value)`
+    -   **Operands:**
+        -   `name`: An `:atom` to be used as the binding's name.
+        -   `value`: Any expression (`:expr`).
+    -   **Description:** Binds `value` to `name` within the current lexical scope. This is a building block and is primarily used within a `:se` or `:fn`.
+
+-   **`:se` (Scoped Expression)**
+    -   **Syntax:** `(:se bindings-sequence return-expression)`
+    -   **Operands:**
+        -   `bindings-sequence`: A `:seq` containing zero or more `:asn` expressions.
+        -   `return-expression`: The final `:expr` to be evaluated.
+    -   **Description:** Creates a new lexical scope. It first evaluates all assignments in the `bindings-sequence`, making them available within the scope. It then evaluates and returns the value of the `return-expression`.
+    -   **Example:**
+        ```wisp
+        ; Create a scope, bind x to 10 and y to 20, then return their sum.
+        (:se
+          (:seq
+            (:asn x 10)
+            (:asn y 20))
+          (+ x y)) ; Assuming '+' is linked, this evaluates to 30.
+        ```
+
+### 5.3. Functions
+
+-   **`:args`**
+    -   **Syntax:** `:args`
+    -   **Operands:** None.
+    -   **Description:** A special atom that resolves to a `:seq` containing all arguments passed to the current function (`:fn`). It is only valid within the body of a function.
+
+-   **`:dr` (Dereference)**
+    -   **Syntax:** `(:dr collection key)`
+    -   **Operands:**
+        -   `collection`: An expression that evaluates to a `:seq` or `:map`.
+        -   `key`: An expression that evaluates to a `:num` (for a `:seq`) or an `:atom` (for a `:map`).
+    -   **Description:** Extracts a value from a collection.
+    -   **Example:**
+        ```wisp
+        ; Get the first argument passed to a function
+        (:dr :args 0)
+        ```
+
+-   **`:fn` (Function)**
+    -   **Syntax:** `(:fn bindings-and-args-sequence return-expression)`
+    -   **Operands:**
+        -   `bindings-and-args-sequence`: A `:seq` of `:asn` expressions. These are used to formally bind arguments from `:args` to names, and to create other local bindings.
+        -   `return-expression`: The `:expr` that serves as the function's body and return value.
+    -   **Description:** Defines a function. The function is a non-invoked expression that can be stored in a binding and called later. When called, the arguments are available via the `:args` special form.
+    -   **Example:**
+        ```wisp
+        ; Defines a function that takes two arguments and returns their sum.
+        (:fn
+          ; Bind 'a' to the first argument and 'b' to the second.
+          (:seq
+            (:asn a (:dr :args 0))
+            (:asn b (:dr :args 1)))
+          ; Return the result of adding them.
+          (+ a b))
+        ```
+
+### 5.4. Modules
+
+-   **`:import`**
+    -   **Syntax:** `(:import path)`
+    -   **Operands:**
+        -   `path`: A `:str` representing the path to the module.
+    -   **Description:** Imports a module. The result of this expression is a `:map` where the keys are the exported names and the values are the exported values.
+
+-   **`:export`**
+    -   **Syntax:** `(:export name value)`
+    -   **Operands:**
+        -   `name`: An `:atom` for the exported name.
+        -   `value`: The `:expr` to be exported.
+    -   **Description:** Marks a value for export from a module.
+
+-   **`:module`**
+    -   **Syntax:** `(:module scoped-expression)`
+    -   **Operands:**
+        -   `scoped-expression`: A `:se` that defines the module's contents.
+    -   **Description:** Defines a module. The module's public interface is determined by the `:export` expressions used within its scope. The result of a linked module is a `:map` of its exports.
+
+### 5.5. Metaprogramming
+
+-   **`:macro`**
+    -   **Syntax:** `(:macro name function-definition)`
+    -   **Operands:**
+        -   `name`: An `:atom` to bind the macro to.
+        -   `function-definition`: A `:fn` that implements the macro's logic.
+    -   **Description:** Defines a compile-time macro. When the linker encounters a call to `name`, it executes the `function-definition`. The arguments to the macro are passed to the function as a `:seq` of rich AST nodes. The function must return a new rich AST node, which the linker will then evaluate and link in place of the original macro call.
