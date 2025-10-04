@@ -12,18 +12,37 @@ const error = (message, ...args) => {
   return err
 }
 
-const parse = (code) => {
+const parse = (code, filename = 'source') => {
   let i = 0
+  let line = 1
+  let col = 1
+
+  const getPos = () => ({ line, col })
 
   const next = () => {
     if (i >= code.length) {
       throw error(UNEXPECTED_EOF)
     }
-    return code[i++]
+    const char = code[i++]
+    if (char === '\n') {
+      line++
+      col = 1
+    } else {
+      col++
+    }
+    return char
   }
 
   const peek = () => code[i]
   const eof = () => i >= code.length
+
+  const withSrc = (parser) => () => {
+    const start = getPos()
+    const node = parser()
+    const end = getPos()
+    const src = `${filename}:${start.line}:${start.col}:${end.line}:${end.col - 1}`
+    return node === null ? null : [':src', src, node]
+  }
 
   const parseAtom = () => {
     let atom = ''
@@ -66,7 +85,6 @@ const parse = (code) => {
       throw error(UNEXPECTED_CHARACTER, startChar)
     }
 
-    // Skip initial whitespace to check for comment
     while (!eof() && /\s/.test(peek())) {
       next()
     }
@@ -103,7 +121,7 @@ const parse = (code) => {
       : [':map', ...list]
   }
 
-  const parseExpr = () => {
+  const _parseExpr = () => {
     while (!eof() && /\s/.test(peek())) {
       next()
     }
@@ -141,6 +159,8 @@ const parse = (code) => {
 
     return atom
   }
+  
+  const parseExpr = withSrc(_parseExpr)
 
   const ast = []
   while (!eof()) {

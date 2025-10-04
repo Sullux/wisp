@@ -132,11 +132,16 @@ A sequential, ordered list of expressions (an array).
 
 ### 4.9. `:src`
 
-A compiler-internal primitive used to wrap another AST node with source location metadata. It has no direct Wisp syntax.
+The `:src` primitive is a special form used internally by the compiler to track the origin of every expression. It follows a hybrid model:
 
--   **Raw AST:** `[':src', 'foo.wisp:3:7:3:9', <node>]`
--   **Rich AST:** `{ src: ['foo.wisp:3:7:3:9', {...}] }`
+1.  **In the raw AST (Parser Output):** Every parsed node is wrapped in a `:src` list. This tightly couples the source location with the node, ensuring that AST transformations (e.g., in macros) carry the source information with them automatically.
+    -   **Raw AST Syntax:** `[':src', location-string, <expression>]`
+
+2.  **In the rich AST (Compiler Output):** The compiler unwraps the `:src` list. It compiles the inner `<expression>` into a rich AST object and then attaches the `location-string` as a `src` property on that object. This provides a clean, non-nested AST for the linker and other tools to consume.
+    -   **Rich AST Object:** `{ <type>: ..., src: location-string }`
+
 -   **Source String Format:** `filename:start_line:start_col:end_line:end_col`
+    -   Example: `foo.wisp:3:7:3:9`
 
 ### 4.10. `:comment`
 

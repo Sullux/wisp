@@ -14,6 +14,22 @@ const error = (message, ...args) => {
 }
 
 const compileNode = (node) => {
+  if (!Array.isArray(node) || node[0] !== ':src') {
+    // This case should ideally not be hit if parser is correct
+    return _compileNode(node)
+  }
+
+  const [_, src, expression] = node
+  const compiledNode = _compileNode(expression)
+  
+  if (compiledNode && typeof compiledNode === 'object') {
+    compiledNode.src = src
+  }
+
+  return compiledNode
+}
+
+const _compileNode = (node) => {
   if (typeof node === 'string') {
     if (node === ':t') return { bool: true }
     if (node === ':f') return { bool: false }
@@ -53,8 +69,10 @@ const compileNode = (node) => {
         const labels = []
         for (let i = 0; i < tail.length; i++) {
           const item = tail[i]
-          if (Array.isArray(item) && item[0] === ':label') {
-            labels.push(compileNode(item))
+          // In a map, the :src wrapper is on the key/value, not the pair
+          const compiledItem = compileNode(item)
+          if (compiledItem.label) {
+            labels.push(compiledItem)
           } else {
             if (i + 1 >= tail.length) throw error(MALFORMED_MAP)
             const key = item
@@ -69,6 +87,9 @@ const compileNode = (node) => {
         }
         return { map: labels }
       }
+      case ':src':
+         // This handles nested :src wrappers, passing the inner one to compileNode
+        return compileNode(node)
       default:
         if (typeof head === 'string' && head.startsWith(':')) {
           throw error(UNKNOWN_PRIMITIVE, head)
