@@ -33,6 +33,7 @@ const Environment = (library = {}, outer = null) => ({
     return null
   },
   set(name, value) {
+    // A binding's value can be a string (for built-ins) or an object for user-defined vars
     this.bindings[name] = value
   },
 })

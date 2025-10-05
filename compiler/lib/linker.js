@@ -40,8 +40,11 @@ const linkNode = (node, env) => {
     case 'bool':
       return String(node.bool)
     case 'atom': {
-      const value = env.find(node.atom)
-      return value === null ? node.atom.replace(/-/g, '__') : value
+      const binding = env.find(node.atom)
+      if (!binding) {
+        return node.atom.replace(/-/g, '__') // Sanitize unbound variables for JS interop
+      }
+      return typeof binding === 'string' ? binding : binding.jsName
     }
     case 'list': {
       const [fnNode, ...argNodes] = node.list
@@ -53,10 +56,23 @@ const linkNode = (node, env) => {
       }
 
       const libraryFn = env.findFunction(fnName)
-      const linkedArgs = argNodes.map(arg => linkNode(arg, env))
       if (libraryFn) {
+        const linkedArgs = argNodes.map(arg => linkNode(arg, env))
         return libraryFn(linkedArgs)
       }
+      
+      const fnBinding = fnName ? env.find(fnName) : null
+      const isPureCall = fnBinding ? fnBinding.isPure !== false : true // Default to pure
+
+      const linkedArgs = argNodes.map(arg => {
+        if (isPureCall && arg.atom) {
+          const argBinding = env.find(arg.atom)
+          if (argBinding && argBinding.isMutable) {
+            return `${argBinding.jsName}.value`
+          }
+        }
+        return linkNode(arg, env)
+      })
       
       const linkedFnName = linkNode(fnNode, env)
       return `${linkedFnName}(${linkedArgs.join(', ')})`

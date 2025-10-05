@@ -10,6 +10,7 @@ const testlib = {
   functions: {
     ...functions,
     '+': (args) => `(${args.join(' + ')})`,
+    '*': (args) => `(${args.join(' * ')})`,
     '>': (args) => `(${args.join(' > ')})`,
     // A mock function with a side effect for testing :do
     '__inc': (args) => `${args[0]}++`,
@@ -52,16 +53,13 @@ describe('Wisp Core Library', () => {
   describe(':do (Sequence)', () => {
     it('should evaluate all expressions and return the last one', () => {
       const wisp = `
-        (:se [(:asn x 10)]
+        (:se [(:asn x (:mut 10))]
           (:do
-            (__inc x)
-            (__inc x)
-            x))
+            (:set x (+ (:get x) 1))
+            (:set x (+ (:get x) 1))
+            (:get x)))
       `
-      // Transpiles to: let x = 10; x++; x++; return x;
-      // So we need to wrap it to eval correctly.
-      const js = `let x = 10; ${transpile(wisp)}`
-      expect(eval(js)).toBe(12)
+      expectWisp(wisp).toBe(12)
     })
 
     it('should return a single expression as is', () => {
@@ -114,6 +112,62 @@ describe('Wisp Core Library', () => {
       const js = transpile(wisp)
       // This should throw a "Assignment to constant variable" error
       expect(() => eval(js)).toThrow()
+    })
+  })
+
+  describe('Purity Analysis', () => {
+    it('should identify a pure function', () => {
+      const wisp = `
+        (:se [(:asn square (:fn [(:asn x (:dr :args 0))] (* x x)))]
+          square)
+      `
+      const square = eval(transpile(wisp))
+      expect(square.isPure).toBe(true)
+    })
+
+    it('should identify an impure function due to :set', () => {
+      const wisp = `
+        (:se [(:asn impure-fn (:fn [(:asn x (:dr :args 0))] (:set x 10)))]
+          impure-fn)
+      `
+      const impureFn = eval(transpile(wisp))
+      expect(impureFn.isPure).toBe(false)
+    })
+
+    it('should identify an impure function due to calling another impure function', () => {
+      const wisp = `
+        (:se [
+          (:asn impure-fn (:fn [(:asn x (:dr :args 0))] (:set x 10)))
+          (:asn another-fn (:fn [] (impure-fn 5)))
+        ]
+        another-fn)
+      `
+      const anotherFn = eval(transpile(wisp))
+      expect(anotherFn.isPure).toBe(false)
+    })
+
+    it('should automatically unwrap a mutable argument for a pure function', () => {
+      const wisp = `
+        (:se [
+          (:asn my-mut (:mut 10))
+          (:asn add-one (:fn [(:asn x (:dr :args 0))] (+ x 1)))
+        ]
+        (add-one my-mut))
+      `
+      expectWisp(wisp).toBe(11)
+    })
+
+    it('should NOT unwrap a mutable argument for an impure function', () => {
+      const wisp = `
+        (:se [
+          (:asn my-mut (:mut 10))
+          (:asn set-to-20 (:fn [(:asn x (:dr :args 0))] (:set x 20)))
+        ]
+        (:do
+          (set-to-20 my-mut)
+          (:get my-mut)))
+      `
+      expectWisp(wisp).toBe(20)
     })
   })
 })
