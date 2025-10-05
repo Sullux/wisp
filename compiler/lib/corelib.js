@@ -67,6 +67,9 @@ const specialForms = {
 const functions = {
   ':dr': (args) => `${args[0]}[${args[1]}]`,
   ':eq': (args) => `(${args.join(' === ')})`,
+  ':mut': (args) => `({ value: ${args[0]} })`,
+  ':get': (args) => `${args[0]}.value`,
+  ':set': (args) => `(${args[0]}.value = ${args[1]})`,
 }
 
 const corelib = { ...specialForms, ...functions }

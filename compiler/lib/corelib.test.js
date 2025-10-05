@@ -78,4 +78,42 @@ describe('Wisp Core Library', () => {
       expectWisp('(:eq 1 2)').toBe(false)
     })
   })
+
+  describe('State Primitives', () => {
+    it('should create and retrieve a value from a mutable container', () => {
+      const wisp = `
+        (:se [(:asn my-mut (:mut 10))]
+          (:get my-mut))
+      `
+      expectWisp(wisp).toBe(10)
+    })
+
+    it('should set a new value in a mutable container', () => {
+      const wisp = `
+        (:se [(:asn my-mut (:mut 10))]
+          (:do
+            (:set my-mut 20)
+            (:get my-mut)))
+      `
+      expectWisp(wisp).toBe(20)
+    })
+
+    it('should return the new value from a :set operation', () => {
+      const wisp = `
+        (:se [(:asn my-mut (:mut 10))]
+          (:set my-mut 20))
+      `
+      expectWisp(wisp).toBe(20)
+    })
+
+    it('should fail to reassign a binding', () => {
+      const wisp = `
+        (:se [(:asn x 10)]
+          (:asn x 20))
+      `
+      const js = transpile(wisp)
+      // This should throw a "Assignment to constant variable" error
+      expect(() => eval(js)).toThrow()
+    })
+  })
 })

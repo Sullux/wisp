@@ -268,3 +268,56 @@ These primitives expose the compiler's own pipeline, allowing for powerful metap
         -   `name`: An `:atom` to bind the macro to.
         -   `function-definition`: A `:fn` that implements the macro's logic.
     -   **Description:** Defines a compile-time macro. When the linker encounters a call to `name`, it executes the `function-definition`. The arguments to the macro are passed to the function as a `:seq` of rich AST nodes. The function must return a new rich AST node, which the linker will then evaluate and link in place of the original macro call.
+
+### 5.7. State and Purity
+
+Wisp is a functional-first language that defaults to immutability and purity, but provides explicit, contained primitives for managing state when necessary.
+
+#### 5.7.1. Core Principles
+
+1.  **Immutability by Default:** All bindings created with `:asn` are immutable and cannot be reassigned.
+2.  **Purity by Default:** All functions (`:fn`) are considered pure unless the linker's static analysis proves otherwise.
+3.  **Explicit Mutability:** State is managed through a set of dedicated primitives that make mutation a deliberate act.
+
+#### 5.7.2. State Primitives
+
+-   **`:mut` (Mutable Container)**
+    -   **Syntax:** `(:mut initial-value)`
+    -   **Operands:**
+        -   `initial-value`: Any `:expr`.
+    -   **Description:** Creates a mutable container, or "cell", that holds the `initial-value`. This container can be passed by reference, and its contents can be updated over time using `:set`.
+
+-   **`:get` (Get Value)**
+    -   **Syntax:** `(:get mutable-container)`
+    -   **Operands:**
+        -   `mutable-container`: An `:expr` that resolves to a container created by `:mut`.
+    -   **Description:** Retrieves the current value from within a mutable container. Note: In practice, this primitive is rarely needed in user code due to the linker's automatic value unwrapping (see below).
+
+-   **`:set` (Set Value)**
+    -   **Syntax:** `(:set mutable-container new-value)`
+    -   **Operands:**
+        -   `mutable-container`: An `:expr` that resolves to a container created by `:mut`.
+        -   `new-value`: The `:expr` to place in the container.
+    -   **Description:** Updates the value within a mutable container. This is the primary side-effecting operation for state and is a key indicator of impurity. The expression evaluates to the `new-value`.
+
+#### 5.7.3. Purity Analysis and Behavior
+
+The linker performs a static analysis on every `:fn` to determine if it is pure. A function is marked as **impure** if its body contains:
+
+-   A `(:set ...)` expression.
+-   A call to another function that is already marked as impure.
+-   An opaque, platform-specific expression (e.g., `(:ecma ...)` in the JavaScript library) that is not explicitly marked as pure.
+
+The result of this analysis is a boolean `isPure` flag attached to the function's rich AST node. This flag governs the linker's behavior:
+
+-   **When calling a pure function:** If a mutable container is passed as an argument, the linker automatically generates code to **unwrap the value** (as if by `:get`), passing the contained value itself to the function. This preserves the function's purity.
+-   **When calling an impure function:** If a mutable container is passed as an argument, the linker passes the **reference to the container itself**, allowing the impure function to potentially `:set` its value.
+
+#### 5.7.4. Purity Override
+
+-   **`:pure`**
+    -   **Syntax:** `(:pure expression)`
+    -   **Operands:**
+        -   `expression`: Any `:expr`, typically an opaque one like `(:ecma ...)`.
+    -   **Description:** A directive to the linker, asserting that the enclosed `expression` is pure and has no side effects. This allows developers to override the linker's default assumption that opaque expressions are impure, enabling their use within pure functions.
+
