@@ -21,8 +21,13 @@ const checkPurity = (node, env) => {
 
       const fnName = fnNode.atom
 
+      // :pure is a directive that whatever it contains is pure.
+      if (fnName === ':pure') return true
+
       // Base case: :set is the root of all impurity.
       if (fnName === ':set') return false
+      // :ecma is impure by default
+      if (fnName === ':ecma') return false
 
       // Special forms that are pure if their contents are pure.
       if ([':if', ':do', ':se', ':fn', ':mut', ':get', ':eq', ':dr'].includes(fnName)) {

@@ -966,7 +966,99 @@ This is a vastly superior model. It achieves the safety and predictability of fu
 
 This is the right direction. It strikes the perfect balance between functional purity and pragmatic development.
 
+...
+
 ==Charles==
 
-I agree. It sounds like we have the perfect plan. I even note the emergent benefit that we will almost never need to explicitly use `:get` since most any function that needs to materialize the mutable value will be a pure function and thus the value will be materialized automatically by the linker; thus, even if we have an impure function that is passed the mutable value `x`, we will not need to code `(+ 1 (:get x))` because `+` is pure; thus, we will just write `(+ 1 x)` and the linker will take care of materialization. I think the next step is documentation: let's carefully capture the specifics of this model in the SPECIFICATION-CORE.md file. When that is done, append our latest conversation to the DISCUSSION.md file in the usual format.
+Agreed. And what about `:ecma` itself -- should that be part of the corelib or is that best implemented at a higher level?
 
+==Gemini==
+
+That's a fantastic question that cuts right to the heart of our architectural philosophy.
+
+You are correct: **`:ecma` is best implemented at a higher level, not in `corelib`.**
+
+Here's the reasoning:
+
+1.  **`corelib` is Platform-Agnostic:** The purpose of `corelib` is to define the fundamental, abstract building blocks of computation: scope, functions, conditionals, state, etc. These concepts are not tied to any specific target language. In theory, you could use `corelib` as the base to write a linker that transpiles Wisp to Python, Lua, or WASM.
+
+2.  **`:ecma` is Platform-Specific:** The `:ecma` primitive is, by its very nature, a direct, unbreakable link to the JavaScript runtime. It is the ultimate platform-specific escape hatch. Including it in `corelib` would violate the principle of platform independence and pollute the abstract core with a concrete implementation detail.
+
+By keeping `:ecma` out of `corelib` and placing it in the future `jscorelib`, we maintain a clean separation of concerns. `jscorelib` will be the layer responsible for all JavaScript-specific functionality, including operators (`+`, `*`), browser/Node APIs, and the `:ecma` primitive for direct interop. This makes the language design cleaner, more modular, and more portable in the long run.
+
+==Charles==
+
+Agreed. Of the remaining work, while the module system may be the biggest piece, I wonder if `:macro` is the _most challenging_ piece. Let's implement the purity override and the compiler API before we tackle either of the bigger jobs.
+
+==Gemini==
+
+Agreed. I will implement the purity override (`:pure`) and the compiler API (`:parse`, `:compile`, `:link`) before tackling the module system or macros.
+
+I'll start with the purity override, as it's more self-contained.
+
+... (The transcript of implementing the purity override and compiler API follows) ...
+
+==Charles==
+
+You did well to stop. I have taken a look. I think there is too much happening at the same time, so I decided to simplify. First, I got rid of the purity test on `:ecma`. I don't think that test is helpful at this time because `:ecma` is not staying in corelib. I know that we are lacking some coverage, but that's ok: when we have a jslib we will write _integration_ tests, and those will involve compiling significant pieces of code and carefully testing the behavior of the compiled JavaScript. That is where we will gain the last 10% of our test coverage. Regarding the three compiler API tests that are failing, I don't think we are too far off. I marked the `:compile` and `:link` tests to be skipped for now, so let's ignore them for the moment. Narrowing our focus, let's take another look at the `:parse` test. I changed to double quotes with `"hello"` to indicate an atom, but the test failed with `ReferenceError: hello is not defined`. This doesn't surprise me because there is no `hello` defined, so putting double quotes around it makes me expect this error. It seems like it needs single quotes unless I am misunderstanding. When I change it to single quotes and `console.log(js)` I see `parse('hello')` in the log. This looks exactly right to me, so next I added some additional javascript to the eval statement. What I learned is that `parse('hello')` does not work but `global.parse('hello')` _does_ work. I do not have an explanation -- perhaps a peculiarity of `eval` that does not automatically put `global` into the current scope? Given this information, I am not sure the best way to make our test work. I do not want to throw a wrench into the works of our corelib just to satisfy a unit test. Ideas?
+
+==Gemini==
+
+You've done a fantastic job narrowing down the problem. Your analysis is spot on. The issue isn't with the code Wisp is generating (`parse('hello')` is perfect), but with the environment in which the test is executing that code.
+
+You are correct, this is a peculiarity of how `eval` interacts with the scope, especially within a module system like Node.js/Jest. It doesn't reliably inherit the `global` scope in the way one might expect.
+
+Your primary concern is the most important one: we absolutely should not change `corelib` to satisfy a unit test. The generated code is correct; the test runner is the problem.
+
+I have an idea for a clean solution that requires changing only the test itself, not the transpiler or the `expectWisp` helper.
+
+Instead of using `eval` directly, we can use the `new Function()` constructor. This allows us to create a function from a string of code and, crucially, to define the names of the arguments that will be passed into its scope.
+
+Here is how we can rewrite the failing `:parse` test:
+
+```javascript
+it('should generate a call to the parse function', () => {
+  const wisp = `(:parse "'hello'")`
+  const js = transpile(wisp) // js is "parse('hello')"
+
+  const mockParse = jest.fn()
+
+  // Create a new function that takes an argument named 'parse'
+  // and executes our transpiled code.
+  const runner = new Function('parse', `return ${js}`)
+
+  // Now, call our new function, passing the mock in as the 'parse' argument.
+  runner(mockParse)
+
+  expect(mockParse).toHaveBeenCalledWith('hello')
+})
+```
+
+**Why this works:**
+
+*   It completely avoids the `eval`/`global` scoping problem.
+*   We explicitly create a scope for the transpiled code and inject our mock `parse` function directly into it as a local variable.
+*   It's a clean, self-contained solution that is isolated entirely within the test case.
+*   It requires no changes to `corelib` or any other part of the compiler.
+
+This approach should allow us to get the test passing without compromising the integrity of our compiler's output. We can apply the same pattern to the `:compile` and `:link` tests when we re-enable them.
+
+==Charles==
+
+Agreed. Go ahead and update those tests using the `Function` constructor.
+
+==Gemini==
+
+Okay, two tests are still failing. I'm getting closer.
+
+1.  **`:compile` test failure:** The mock was called with 0 arguments.
+    *   **Reason:** I'm not transpiling the arguments to `:compile` correctly. `linkNode` for a `:seq` produces a JS array `[...]`, but the contents are not being transpiled correctly as string literals for the inner atoms. The generated JS is likely `compile([:src, test:1:1:1:1, [foo]])` which is invalid. I need to make the linker smarter about how it transpiles sequences and maps that are passed as arguments.
+
+2.  **`:link` test failure:** `SyntaxError: Unexpected token ','`.
+    *   **Reason:** Similar to the above, the linker is trying to transpile a map `{ :atom 'foo' }` into a JS object literal, which it can't do. The generated code is invalid JS.
+
+This is the same root cause I identified before. My attempt to fix the tests by changing the Wisp code was insufficient because the linker itself doesn't know how to serialize these complex data structures into valid JavaScript code to be passed as arguments.
+
+I will stop again, as this is the "spin my wheels" point. The core issue is that the linker needs a way to handle data literals (like sequences and maps) when they are arguments to a function, not just top-level expressions.
+
+I will await your direction.

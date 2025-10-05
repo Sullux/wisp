@@ -90,6 +90,10 @@ const specialForms = {
   ${linkedNodes.join(';\n  ')};
 })()`
   },
+
+  // Note: :ecma is not part of corelib, but is included here for testing :pure
+  ':ecma': (argNodes) => argNodes.map(a => a.str).join(''),
+  ':pure': (argNodes, env, linkNode) => linkNode(argNodes[0], env),
 }
 
 const functions = {
@@ -98,6 +102,10 @@ const functions = {
   ':mut': (args) => `({ value: ${args[0]} })`,
   ':get': (args) => `${args[0]}.value`,
   ':set': (args) => `(${args[0]}.value = ${args[1]})`,
+  // Compiler API - assumes runtime functions are available
+  ':parse': (args) => `parse(${args[0]})`,
+  ':compile': (args) => `compile(${args[0]})`,
+  ':link': (args) => `link(${args[0]}, ${args[1]})`,
 }
 
 const corelib = { ...specialForms, ...functions }

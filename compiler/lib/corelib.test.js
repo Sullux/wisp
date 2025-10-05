@@ -13,8 +13,8 @@ const testlib = {
     '*': (args) => `(${args.join(' * ')})`,
     '>': (args) => `(${args.join(' > ')})`,
     // A mock function with a side effect for testing :do
-    '__inc': (args) => `${args[0]}++`,
-  }
+    __inc: (args) => `${args[0]}++`,
+  },
 }
 
 const transpile = (code) => link(compile(parse(code)), testlib)
@@ -34,7 +34,7 @@ describe('Wisp Core Library', () => {
   describe(':se (Scoped Expression)', () => {
     it('should evaluate a scoped expression', () => {
       const wisp = `
-        (:se 
+        (:se
           [ (:asn x 10)
             (:asn y 20) ]
           (+ x y))
@@ -168,6 +168,57 @@ describe('Wisp Core Library', () => {
           (:get my-mut)))
       `
       expectWisp(wisp).toBe(20)
+    })
+
+    it('should treat a function with (:pure :ecma) as pure', () => {
+      const wisp = `
+        (:se [
+          (:asn get-pi (:fn [] (:pure (:ecma "Math.PI"))))
+        ]
+        get-pi)
+      `
+      const getPi = eval(transpile(wisp))
+      expect(getPi.isPure).toBe(true)
+    })
+  })
+
+  describe('Compiler API', () => {
+    it('should generate a call to the parse function', () => {
+      const wisp = `(:parse "'hello'")` // Pass a Wisp string literal
+      const js = transpile(wisp)
+      const mockParse = jest.fn()
+      const runner = new Function('parse', `return ${js}`)
+      runner(mockParse)
+      expect(mockParse).toHaveBeenCalledWith('hello')
+    })
+
+    // Re-enable and fix the skipped tests
+    it('should generate a call to the compile function', () => {
+      // The argument to compile should be a raw AST, which is a seq of seqs/atoms
+      const wisp = `(:compile [':src' 'test:1:1:1:1' ['foo']])`
+      const js = transpile(wisp)
+      const mockCompile = jest.fn()
+      const runner = new Function('compile', `return ${js}`)
+      runner(mockCompile)
+      expect(mockCompile).toHaveBeenCalledWith([
+        ':src',
+        'test:1:1:1:1',
+        ['foo'],
+      ])
+    })
+
+    it('should generate a call to the link function', () => {
+      // Arguments are a rich AST (a map) and a library (a map)
+      const wisp = `(:link { :atom 'foo' } { :map [] })`
+      const js = transpile(wisp)
+      const mockLink = jest.fn()
+      // The transpiled map becomes a JS Map object, so we mock that here.
+      const runner = new Function('link', `return ${js}`)
+      runner(mockLink)
+      expect(mockLink).toHaveBeenCalledWith(
+        new Map([['atom', 'foo']]),
+        new Map(),
+      )
     })
   })
 })
